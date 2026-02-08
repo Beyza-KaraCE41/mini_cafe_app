@@ -15,10 +15,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
 
   bool _obscurePassword = true;
-  bool _isButtonHovered = false;
-  bool _isImageHovered = false;
   bool _isLoading = false;
   bool _isSignUp = false;
+  String _selectedRole = 'customer'; // 'customer' veya 'admin'
 
   @override
   void dispose() {
@@ -33,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? Colors.red : Colors.green,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -44,31 +43,41 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    if (_isSignUp && _nameController.text.isEmpty) {
-      _showSnackBar('Lütfen adınızı girin', isError: true);
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
       if (_isSignUp) {
+        // KAYIT OL
         await _authService.signUpWithEmail(
           _emailController.text.trim(),
           _passwordController.text,
+          _selectedRole,
         );
-        _showSnackBar('Kayıt başarılı! Hoşgeldiniz!');
+        _showSnackBar('Kayıt başarılı! Giriş yapılıyor...');
+
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        await _authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        print('✅ Kayıt + Login OK - Role: $_selectedRole');
       } else {
+        // GİRİŞ YAP
         await _authService.signInWithEmail(
           _emailController.text.trim(),
           _passwordController.text,
         );
         _showSnackBar('Giriş başarılı!');
+        print('✅ Login OK');
       }
     } catch (e) {
-      _showSnackBar(e.toString(), isError: true);
+      _showSnackBar('Hata: ${e.toString()}', isError: true);
+      print('❌ Error: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -90,51 +99,50 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                MouseRegion(
-                  onEnter: (_) => setState(() => _isImageHovered = true),
-                  onExit: (_) => setState(() => _isImageHovered = false),
-                  child: AnimatedScale(
-                    scale: _isImageHovered ? 1.08 : 1.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: Container(
-                      width: 180,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.amber.shade400,
-                          width: 6,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                          BoxShadow(
-                            color: Colors.amber.shade400.withOpacity(0.3),
-                            blurRadius: 15,
-                            offset: const Offset(0, 0),
-                          ),
-                        ],
+                // 🐦 TWEETY RESMİ
+                Container(
+                  width: 180,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.amber.shade400,
+                      width: 6,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
                       ),
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                        ),
-                        padding: const EdgeInsets.all(8),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/images/tweety.png',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
+                    ],
+                  ),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/tweety.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Icon(
+                              Icons.coffee,
+                              size: 100,
+                              color: Colors.brown.shade700,
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 40),
+
+                // ☕ BAŞLIK
                 Text(
                   'Mini Kafeye',
                   textAlign: TextAlign.center,
@@ -161,13 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     fontWeight: FontWeight.bold,
                     color: Colors.amber.shade400,
                     letterSpacing: 1.2,
-                    shadows: [
-                      Shadow(
-                        blurRadius: 5,
-                        color: Colors.black.withOpacity(0.5),
-                        offset: const Offset(2, 2),
-                      ),
-                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -176,52 +177,64 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? 'Yeni hesap oluşturun'
                       : 'Giriş yaparak devam edin',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,
-                    letterSpacing: 0.5,
                   ),
                 ),
                 const SizedBox(height: 35),
+
+                // ⭐ ROL SEÇİMİ (KAYIT SAYFASINDA)
                 if (_isSignUp)
                   Column(
                     children: [
-                      TextField(
-                        controller: _nameController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Ad Soyad',
-                          hintStyle: const TextStyle(color: Colors.white70),
-                          prefixIcon: const Icon(
-                            Icons.person,
-                            color: Colors.white70,
-                          ),
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.1),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: Colors.amber.shade400,
-                              width: 2,
-                            ),
-                          ),
+                      const Text(
+                        'Rol Seçin:',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: RadioListTile<String>(
+                              title: const Text(
+                                'Müşteri',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              value: 'customer',
+                              groupValue: _selectedRole,
+                              onChanged: (value) {
+                                setState(
+                                    () => _selectedRole = value ?? 'customer');
+                              },
+                              activeColor: Colors.amber.shade400,
+                            ),
+                          ),
+                          Expanded(
+                            child: RadioListTile<String>(
+                              title: const Text(
+                                'Admin',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              value: 'admin',
+                              groupValue: _selectedRole,
+                              onChanged: (value) {
+                                setState(
+                                    () => _selectedRole = value ?? 'admin');
+                              },
+                              activeColor: Colors.amber.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
                     ],
                   ),
+
+                // EMAIL
                 TextField(
                   controller: _emailController,
                   style: const TextStyle(color: Colors.white),
@@ -233,15 +246,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     fillColor: Colors.white.withOpacity(0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.2),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.2),
-                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -253,6 +257,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // ŞİFRE
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -275,15 +281,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     fillColor: Colors.white.withOpacity(0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.2),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.2),
-                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -295,60 +292,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                MouseRegion(
-                  onEnter: (_) => setState(() => _isButtonHovered = true),
-                  onExit: (_) => setState(() => _isButtonHovered = false),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(
-                            _isButtonHovered ? 0.6 : 0.4,
-                          ),
-                          blurRadius: _isButtonHovered ? 20 : 10,
-                          offset: Offset(0, _isButtonHovered ? 10 : 6),
-                        ),
-                      ],
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleAuth,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _isButtonHovered
-                              ? Colors.amber.shade600
-                              : Colors.amber.shade700,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          elevation: 0,
-                          disabledBackgroundColor: Colors.grey,
-                        ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                _isSignUp ? 'Kayıt Ol ☕' : 'Giriş Yap ☕',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
+
+                // BUTTON
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleAuth,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text(
+                            _isSignUp ? 'Kayıt Ol ☕' : 'Giriş Yap ☕',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // TOGGLE SIGN UP / SIGN IN
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -362,9 +333,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () {
                         setState(() {
                           _isSignUp = !_isSignUp;
-                          _nameController.clear();
-                          _emailController.clear();
                           _passwordController.clear();
+                          _selectedRole = 'customer';
                         });
                       },
                       child: Text(
