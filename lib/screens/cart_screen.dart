@@ -482,7 +482,7 @@ class _CartScreenState extends State<CartScreen> {
           isError: false,
         );
 
-        // 2 saniye sonra OrdersScreen'e yönlendir
+        // 2 saniye sonra OrdersScreenUser'e yönlendir
         await Future.delayed(const Duration(seconds: 2));
 
         if (mounted) {
