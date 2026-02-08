@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product.dart';
 
 class ProductItem extends StatefulWidget {
@@ -21,6 +23,109 @@ class ProductItem extends StatefulWidget {
 
 class _ProductItemState extends State<ProductItem> {
   bool _isHovered = false;
+  late bool _isFavorite = false;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavorite();
+  }
+
+  void _checkFavorite() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        DocumentSnapshot doc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('favorites')
+            .doc(widget.product.id)
+            .get();
+
+        if (mounted) {
+          setState(() => _isFavorite = doc.exists);
+        }
+      } catch (e) {
+        print('Favori kontrol hatası: $e');
+      }
+    }
+  }
+
+  void _toggleFavorite() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Favorilere eklemek için giriş yapmanız gerekiyor'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      if (_isFavorite) {
+        // Favorilerden çıkar
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('favorites')
+            .doc(widget.product.id)
+            .delete();
+
+        if (mounted) {
+          setState(() => _isFavorite = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${widget.product.name} favorilerden kaldırıldı'),
+              backgroundColor: Colors.red.shade600,
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(12),
+            ),
+          );
+        }
+      } else {
+        // Favorilere ekle
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('favorites')
+            .doc(widget.product.id)
+            .set({
+          'id': widget.product.id,
+          'name': widget.product.name,
+          'price': widget.product.price,
+          'category': widget.product.category,
+          'imagePath': widget.product.imagePath,
+          'stock': widget.product.stock,
+          'addedAt': FieldValue.serverTimestamp(),
+        });
+
+        if (mounted) {
+          setState(() => _isFavorite = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${widget.product.name} favorilere eklendi ❤️'),
+              backgroundColor: Colors.red.shade600,
+              duration: const Duration(seconds: 1),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(12),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Favori kaydetme hatası: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Hata: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,13 +135,13 @@ class _ProductItemState extends State<ProductItem> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.brown.withOpacity(_isHovered ? 0.4 : 0.18),
-              blurRadius: _isHovered ? 28 : 14,
+              color: Colors.brown.withOpacity(_isHovered ? 0.35 : 0.15),
+              blurRadius: _isHovered ? 30 : 12,
               spreadRadius: _isHovered ? 4 : 0,
-              offset: Offset(0, _isHovered ? 14 : 6),
+              offset: Offset(0, _isHovered ? 16 : 6),
             ),
           ],
         ),
@@ -44,112 +149,104 @@ class _ProductItemState extends State<ProductItem> {
           elevation: 0,
           color: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             side: BorderSide(
-              color: _isHovered ? Colors.amber.shade500 : Colors.amber.shade100,
-              width: _isHovered ? 3 : 1.5,
+              color: _isHovered ? Colors.amber.shade600 : Colors.amber.shade200,
+              width: _isHovered ? 2.5 : 1.5,
             ),
           ),
           child: AnimatedScale(
-            scale: _isHovered ? 1.04 : 1.0,
+            scale: _isHovered ? 1.05 : 1.0,
             duration: const Duration(milliseconds: 300),
             child: Column(
               children: [
-                // Image Section - FIX OVERFLOW
+                // 🖼️ IMAGE SECTION
                 ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    topRight: Radius.circular(18),
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
                   child: Stack(
                     children: [
-                      // Image Container
+                      // PLACEHOLDER IMAGE
                       Container(
-                        height: 130,
+                        height: 140,
                         width: double.infinity,
-                        color: Colors.grey.shade100,
-                        child: Image.asset(
-                          widget.product.imagePath,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey.shade50,
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.image_outlined,
-                                      size: 32,
-                                      color: Colors.grey.shade300,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Görsel Yok',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey.shade400,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
+                        color: Colors.amber.shade300,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.coffee,
+                                size: 50,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                              const SizedBox(height: 8),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  widget.product.name,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
                       ),
 
-                      // Favorite Icon - Top Left
+                      // ❤️ FAVORITE BUTTON
                       Positioned(
-                        top: 8,
-                        left: 8,
+                        top: 12,
+                        right: 12,
                         child: GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Favorilere eklendi ❤️'),
-                                duration: const Duration(seconds: 2),
-                                backgroundColor: Colors.red.shade400,
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.all(8),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: 36,
-                            height: 36,
+                          onTap: _toggleFavorite,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: 42,
+                            height: 42,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
-                                  blurRadius: 6,
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 8,
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              Icons.favorite_outline,
-                              color: Colors.red.shade400,
-                              size: 18,
+                            child: Center(
+                              child: Icon(
+                                _isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: _isFavorite
+                                    ? Colors.red.shade600
+                                    : Colors.grey.shade400,
+                                size: 22,
+                              ),
                             ),
                           ),
                         ),
                       ),
 
-                      // Out of Stock Overlay
+                      // 🚫 OUT OF STOCK OVERLAY
                       if (widget.product.stock == 0)
                         Container(
-                          color: Colors.black.withOpacity(0.5),
+                          color: Colors.black.withOpacity(0.6),
                           child: Center(
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
-                                vertical: 8,
+                                vertical: 10,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade600,
@@ -161,15 +258,15 @@ class _ProductItemState extends State<ProductItem> {
                                   Icon(
                                     Icons.block,
                                     color: Colors.white,
-                                    size: 16,
+                                    size: 18,
                                   ),
-                                  SizedBox(width: 6),
+                                  SizedBox(width: 8),
                                   Text(
                                     'Tükendi',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                      fontSize: 13,
                                     ),
                                   ),
                                 ],
@@ -181,7 +278,7 @@ class _ProductItemState extends State<ProductItem> {
                   ),
                 ),
 
-                // Content Section - NO OVERFLOW
+                // 📝 CONTENT SECTION
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -192,7 +289,7 @@ class _ProductItemState extends State<ProductItem> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Product Name - Fixed
+                        // PRODUCT NAME
                         Flexible(
                           child: Text(
                             widget.product.name,
@@ -208,42 +305,37 @@ class _ProductItemState extends State<ProductItem> {
                         ),
                         const SizedBox(height: 4),
 
-                        // Category Badge
-                        SizedBox(
-                          height: 22,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
+                        // CATEGORY BADGE
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Colors.amber.shade300,
+                              width: 0.5,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade100,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: Colors.amber.shade300,
-                                width: 0.5,
-                              ),
+                          ),
+                          child: Text(
+                            widget.product.category,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.brown.shade800,
+                              fontWeight: FontWeight.w600,
                             ),
-                            child: Center(
-                              child: Text(
-                                widget.product.category,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.brown.shade800,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
 
                         const Spacer(),
 
-                        // Price
+                        // PRICE
                         Text(
-                          '${widget.product.price.toStringAsFixed(0)} TL',
+                          '₺${widget.product.price.toString()}',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -255,9 +347,9 @@ class _ProductItemState extends State<ProductItem> {
                   ),
                 ),
 
-                // Action Button Section - NO OVERFLOW
+                // 🛒 ACTION BUTTON
                 SizedBox(
-                  height: 44,
+                  height: 48,
                   child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: widget.product.quantity == 0
@@ -293,7 +385,7 @@ class _ProductItemState extends State<ProductItem> {
                               icon:
                                   const Icon(Icons.add_shopping_cart, size: 16),
                               label: const Text(
-                                'Ekle',
+                                'Sepete Ekle',
                                 style: TextStyle(fontSize: 12),
                               ),
                               style: ElevatedButton.styleFrom(
