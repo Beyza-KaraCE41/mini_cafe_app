@@ -1,37 +1,52 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
-  // Singleton pattern
-  static final AuthService _instance = AuthService._internal();
-
-  factory AuthService() {
-    return _instance;
-  }
-
-  AuthService._internal();
-
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   User? get currentUser => _firebaseAuth.currentUser;
-
   String get userEmail => currentUser?.email ?? '';
-
   String get userId => currentUser?.uid ?? '';
 
-  // Role kontrolü - Email'e göre admin olup olmadığını kontrol et
-  bool get isAdmin {
-    // admin@minicafe.com formatında giren hesaplar admin
-    return currentUser?.email?.contains('admin') ?? false;
+  // ⭐ ROL BİLGİSİ
+  Future<String> getUserRole() async {
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('users').doc(userId).get();
+      return doc['role'] ?? 'customer';
+    } catch (e) {
+      return 'customer';
+    }
   }
 
-  // Auth state changes - Stream olarak sabır dinle
+  bool get isLoggedIn => _firebaseAuth.currentUser != null;
+
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
-  // Kayıt ol
-  Future<UserCredential?> signUpWithEmail(String email, String password) async {
+  // 📝 KAYIT OL (Müşteri veya Admin)
+  Future<UserCredential?> signUpWithEmail(
+    String email,
+    String password,
+    String role, // 'customer' veya 'admin'
+  ) async {
     try {
-      UserCredential userCredential = await _firebaseAuth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential =
+          await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Firestore'a user bilgisi kaydet
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
+        'email': email,
+        'role': role,
+        'createdAt': FieldValue.serverTimestamp(),
+        'name': '',
+        'phone': '',
+        'address': '',
+      });
+
       return userCredential;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'weak-password') {
@@ -47,11 +62,14 @@ class AuthService {
     }
   }
 
-  // Giriş yap
+  // 🔐 GİRİŞ YAP
   Future<UserCredential?> signInWithEmail(String email, String password) async {
     try {
-      UserCredential userCredential = await _firebaseAuth
-          .signInWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential =
+          await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
       return userCredential;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
@@ -69,18 +87,16 @@ class AuthService {
     }
   }
 
-  // Çıkış yap - ÖNEMLİ!
+  // 🔴 ÇIKIŞ YAP
   Future<void> signOut() async {
     try {
-      print('🔴 Çıkış yapılıyor...');
       await _firebaseAuth.signOut();
-      print('✅ Çıkış başarılı!');
     } catch (e) {
       throw 'Çıkış hatası: $e';
     }
   }
 
-  // Şifre sıfırla
+  // 🔑 ŞİFRE SIFIRLA
   Future<void> resetPassword(String email) async {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
@@ -88,7 +104,4 @@ class AuthService {
       throw 'Şifre sıfırlama hatası: $e';
     }
   }
-
-  // Mevcut kullanıcıyı kontrol et
-  bool get isLoggedIn => _firebaseAuth.currentUser != null;
 }
