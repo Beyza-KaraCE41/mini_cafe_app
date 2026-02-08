@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,31 +9,67 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+  final AuthService _authService = AuthService();
+
   bool _obscurePassword = true;
   bool _isButtonHovered = false;
   bool _isImageHovered = false;
-
-  void _login() {
-    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen tüm alanları doldurun')),
-      );
-      return;
-    }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
-  }
+  bool _isLoading = false;
+  bool _isSignUp = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _handleAuth() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showSnackBar('Lütfen tüm alanları doldurun', isError: true);
+      return;
+    }
+
+    if (_isSignUp && _nameController.text.isEmpty) {
+      _showSnackBar('Lütfen adınızı girin', isError: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (_isSignUp) {
+        await _authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        _showSnackBar('Kayıt başarılı! Hoşgeldiniz!');
+      } else {
+        await _authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        _showSnackBar('Giriş başarılı!');
+      }
+    } catch (e) {
+      _showSnackBar(e.toString(), isError: true);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -54,7 +90,6 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Logo - Çerçeveli, Gölgeli ve Daha Büyük
                 MouseRegion(
                   onEnter: (_) => setState(() => _isImageHovered = true),
                   onExit: (_) => setState(() => _isImageHovered = false),
@@ -62,8 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     scale: _isImageHovered ? 1.08 : 1.0,
                     duration: const Duration(milliseconds: 300),
                     child: Container(
-                      width: 200,
-                      height: 200,
+                      width: 180,
+                      height: 180,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
@@ -84,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       child: Container(
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white,
                         ),
@@ -99,64 +134,47 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 50),
-
-                // Başlık - Ortalanmış ve Gölgeli
-                Container(
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                const SizedBox(height: 40),
+                Text(
+                  'Mini Kafeye',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 5,
+                        color: Colors.black.withOpacity(0.5),
+                        offset: const Offset(2, 2),
                       ),
                     ],
                   ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Mini Kafeye',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.2,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 5,
-                              color: Colors.black.withOpacity(0.5),
-                              offset: const Offset(2, 2),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Hoşgeldinizzz',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber.shade400,
-                          letterSpacing: 1.2,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 5,
-                              color: Colors.black.withOpacity(0.5),
-                              offset: const Offset(2, 2),
-                            ),
-                          ],
-                        ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Hoşgeldinizzz',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber.shade400,
+                    letterSpacing: 1.2,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 5,
+                        color: Colors.black.withOpacity(0.5),
+                        offset: const Offset(2, 2),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Alt Yazı
                 Text(
-                  'Giriş yaparak devam edin',
+                  _isSignUp
+                      ? 'Yeni hesap oluşturun'
+                      : 'Giriş yaparak devam edin',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -164,16 +182,53 @@ class _LoginScreenState extends State<LoginScreen> {
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 45),
-
-                // Kullanıcı Adı
+                const SizedBox(height: 35),
+                if (_isSignUp)
+                  Column(
+                    children: [
+                      TextField(
+                        controller: _nameController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Ad Soyad',
+                          hintStyle: const TextStyle(color: Colors.white70),
+                          prefixIcon: const Icon(
+                            Icons.person,
+                            color: Colors.white70,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.1),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: Colors.amber.shade400,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 TextField(
-                  controller: _usernameController,
+                  controller: _emailController,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Kullanıcı Adı',
+                    hintText: 'E-posta',
                     hintStyle: const TextStyle(color: Colors.white70),
-                    prefixIcon: const Icon(Icons.person, color: Colors.white70),
+                    prefixIcon: const Icon(Icons.email, color: Colors.white70),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.1),
                     border: OutlineInputBorder(
@@ -198,8 +253,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Şifre
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -215,11 +268,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             : Icons.visibility,
                         color: Colors.white70,
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.1),
@@ -245,8 +295,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Giriş Butonu - Hover Efektli
                 MouseRegion(
                   onEnter: (_) => setState(() => _isButtonHovered = true),
                   onExit: (_) => setState(() => _isButtonHovered = false),
@@ -266,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _login,
+                        onPressed: _isLoading ? null : _handleAuth,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _isButtonHovered
                               ? Colors.amber.shade600
@@ -276,19 +324,58 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           elevation: 0,
+                          disabledBackgroundColor: Colors.grey,
                         ),
-                        child: Text(
-                          'Giriş Yap ☕',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                _isSignUp ? 'Kayıt Ol ☕' : 'Giriş Yap ☕',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
                       ),
                     ),
                   ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _isSignUp
+                          ? 'Zaten hesabınız var mı? '
+                          : 'Hesabınız yok mu? ',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isSignUp = !_isSignUp;
+                          _nameController.clear();
+                          _emailController.clear();
+                          _passwordController.clear();
+                        });
+                      },
+                      child: Text(
+                        _isSignUp ? 'Giriş Yap' : 'Kayıt Ol',
+                        style: TextStyle(
+                          color: Colors.amber.shade400,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product.dart';
 import '../services/firestore_service.dart';
-import 'orders_screen.dart';
+import 'orders_screen_user.dart';
 
 class CartScreen extends StatefulWidget {
   final List<Product> cartItems;
@@ -32,6 +32,10 @@ class _CartScreenState extends State<CartScreen> {
           title: const Text('Sepetim ☕',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
           elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
         ),
         body: Container(
           decoration: const BoxDecoration(
@@ -67,6 +71,23 @@ class _CartScreenState extends State<CartScreen> {
                     color: Colors.brown.withOpacity(0.6),
                   ),
                 ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Alışverişe Dön'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -79,13 +100,18 @@ class _CartScreenState extends State<CartScreen> {
         title: const Text('Sepetim ☕',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+          tooltip: 'Geri Dön',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.history, size: 24),
             onPressed: () {
-              Navigator.push(
+              Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                MaterialPageRoute(builder: (_) => const OrdersScreenUser()),
               );
             },
             tooltip: 'Siparişlerim',
@@ -118,6 +144,10 @@ class _CartScreenState extends State<CartScreen> {
                       elevation: 2,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Colors.amber.shade200,
+                          width: 1,
+                        ),
                       ),
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -191,7 +221,7 @@ class _CartScreenState extends State<CartScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Toplam: $itemTotal TL',
+                                    'Toplam: ${(itemTotal).toStringAsFixed(2)} TL',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
@@ -287,7 +317,7 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                       ),
                       Text(
-                        '$subtotal TL',
+                        '${subtotal.toStringAsFixed(2)} TL',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -346,7 +376,7 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                       ),
                       Text(
-                        '$total TL',
+                        '${total.toStringAsFixed(2)} TL',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -392,6 +422,28 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+
+                  // Geri Dön Butonu
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Alışverişe Devam Et'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.brown.shade700,
+                        side: BorderSide(
+                          color: Colors.brown.shade700,
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -412,35 +464,41 @@ class _CartScreenState extends State<CartScreen> {
     setState(() => _isProcessing = true);
 
     try {
+      // Siparişi oluştur
       await _firestoreService.createOrder(
         user.uid,
         widget.cartItems.where((p) => p.quantity > 0).toList(),
         total,
       );
 
+      // Sepeti temizle
       for (var item in widget.cartItems) {
         item.quantity = 0;
       }
 
       if (mounted) {
         _showSnackBar(
-          'Siparişiniz alındı! 🎉\n${total.toStringAsFixed(2)} TL ücretlendirileceksiniz.',
+          'Siparişiniz alındı! 🎉',
           isError: false,
         );
 
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const OrdersScreen()),
-            );
-          }
-        });
+        // 2 saniye sonra OrdersScreen'e yönlendir
+        await Future.delayed(const Duration(seconds: 2));
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const OrdersScreenUser()),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
-        _showSnackBar('Hata: ${e.toString().substring(0, 50)}...',
-            isError: true);
+        String errorMsg = e.toString();
+        if (errorMsg.length > 100) {
+          errorMsg = '${errorMsg.substring(0, 100)}...';
+        }
+        _showSnackBar('Hata: $errorMsg', isError: true);
       }
     } finally {
       if (mounted) {

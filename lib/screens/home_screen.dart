@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
-import '../widgets/product_item.dart';
 import '../services/auth_service.dart';
-import 'cart_screen.dart';
+import 'home_products_screen.dart';
+import 'favorites_screen.dart';
+import 'orders_screen_user.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,75 +13,34 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String selectedCategory = 'Tümü';
+  int _selectedIndex = 0;
   final AuthService _authService = AuthService();
-  int cartItemCount = 0;
+
+  final List<Widget> _screens = [
+    const HomeProductsScreen(), // 🏠 Anasayfa
+    const FavoritesScreen(), // ❤️ Favoriler
+    const OrdersScreenUser(), // 📦 Siparişlerim
+    const ProfileScreen(), // 👤 Profil
+  ];
+
+  final List<String> _titles = [
+    'Mini Cafe ☕',
+    'Favorilerim ❤️',
+    'Siparişlerim 📦',
+    'Profil 👤',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    List<Product> displayedProducts = selectedCategory == 'Tümü'
-        ? products
-        : products.where((p) => p.category == selectedCategory).toList();
-
-    cartItemCount = products.fold(0, (sum, item) => sum + item.quantity);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mini Cafe ☕',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+        title: Text(
+          _titles[_selectedIndex],
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
         elevation: 0,
-        centerTitle: false,
         actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_cart, size: 28),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => CartScreen(cartItems: products)),
-                  ).then((_) {
-                    setState(() {
-                      cartItemCount =
-                          products.fold(0, (sum, item) => sum + item.quantity);
-                    });
-                  });
-                },
-              ),
-              if (cartItemCount > 0)
-                Positioned(
-                  right: 6,
-                  top: 6,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade600,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withOpacity(0.4),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    constraints:
-                        const BoxConstraints(minWidth: 24, minHeight: 24),
-                    child: Center(
-                      child: Text(
-                        '$cartItemCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          // Çıkış butonu
           IconButton(
             icon: const Icon(Icons.logout, size: 24),
             onPressed: () => _showLogoutDialog(),
@@ -89,146 +49,33 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFFE0B2), Color(0xFFFFF8E1)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Column(
-          children: [
-            // Category Filter
-            SizedBox(
-              height: 60,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                children: ['Tümü', 'Kahve', 'İçecek', 'Tatlı'].map((category) {
-                  bool isSelected = category == selectedCategory;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => selectedCategory = category),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Colors.brown.shade800
-                              : Colors.white.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.amber.shade400
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.brown.withOpacity(0.25),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Center(
-                          child: Text(
-                            category,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : Colors.brown.shade800,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+      body: _screens[_selectedIndex],
 
-            // Products Grid
-            Expanded(
-              child: displayedProducts.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.inventory_2_outlined,
-                            size: 80,
-                            color: Colors.brown.withOpacity(0.2),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Bu kategoride ürün yok',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.brown.withOpacity(0.5),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '😔',
-                            style: TextStyle(
-                              fontSize: 32,
-                              color: Colors.brown.withOpacity(0.3),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 0.75,
-                      ),
-                      itemCount: displayedProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = displayedProducts[index];
-                        return ProductItem(
-                          product: product,
-                          onAdd: () {
-                            setState(() {
-                              if (product.quantity < product.stock) {
-                                product.quantity++;
-                              }
-                            });
-                          },
-                          onRemove: () {
-                            setState(() {
-                              if (product.quantity > 0) {
-                                product.quantity--;
-                              }
-                            });
-                          },
-                          onAddToCart: () {
-                            setState(() {
-                              cartItemCount = products.fold(
-                                  0, (sum, item) => sum + item.quantity);
-                            });
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
+      // ⭐ BOTTOM NAVIGATION
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+        },
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Anasayfa',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite),
+            label: 'Favoriler',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_bag),
+            label: 'Siparişlerim',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_circle),
+            label: 'Profil',
+          ),
+        ],
       ),
     );
   }
@@ -266,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  _authService.signOut();
+                  _logout();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.shade600,
@@ -293,5 +140,32 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _logout() async {
+    try {
+      print('🔴 Çıkış yapılıyor...');
+      await _authService.signOut();
+      print('✅ Çıkış başarılı!');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Çıkış yapıldı. Hoşça kalın! 👋'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Çıkış hatası: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

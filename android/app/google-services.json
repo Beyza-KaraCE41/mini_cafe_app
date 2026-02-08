@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "541778859226",
+    "project_id": "mini-cafe-app",
+    "storage_bucket": "mini-cafe-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:541778859226:android:a475f432d5ac08f15181e3",
+        "android_client_info": {
+          "package_name": "com.example.mini_cafe_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlW7BVt83OY1dgd6ujM6cMYBssDGPUXo8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
