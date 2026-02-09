@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import '../models/product.dart';
 import '../widgets/product_item.dart';
-import '../services/auth_service.dart';
 import 'cart_screen.dart';
 import 'favorites_screen.dart';
 import 'orders_screen_user.dart';
@@ -19,15 +20,15 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedNavIndex = 0;
   int _selectedCategoryIndex = 0;
   final AuthService _authService = AuthService();
-
-  // Sepet ürünleri
-  final List<Product> cartItems = [];
-
+  final FirestoreService _firestoreService = FirestoreService();
   final List<String> categories = ['Tümü', 'Kahve', 'Çay', 'Tatlı'];
 
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
+
+    // Sepetteki ürünleri hesapla (global products listesinden)
+    final cartCount = products.fold<int>(0, (sum, p) => sum + p.quantity);
 
     return Scaffold(
       appBar: AppBar(
@@ -37,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         elevation: 2,
         actions: [
-          // 🛒 CART BUTTON
+          // Sepet butonu
           Stack(
             children: [
               IconButton(
@@ -46,12 +47,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => CartScreen(cartItems: cartItems),
+                      builder: (_) => CartScreen(
+                        cartItems:
+                            products.where((p) => p.quantity > 0).toList(),
+                      ),
                     ),
-                  );
+                  ).then((_) {
+                    setState(() {}); // CartScreen'den dönünce güncelle
+                  });
                 },
               ),
-              if (cartItems.any((p) => p.quantity > 0))
+              if (cartCount > 0)
                 Positioned(
                   right: 8,
                   top: 8,
@@ -64,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     constraints:
                         const BoxConstraints(minWidth: 20, minHeight: 20),
                     child: Text(
-                      '${cartItems.fold<int>(0, (sum, p) => sum + p.quantity)}',
+                      '$cartCount',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -76,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
             ],
           ),
-          // 🔴 LOGOUT
+          // Çıkış butonu
           IconButton(
             icon: const Icon(Icons.logout, size: 20),
             onPressed: _logout,
@@ -128,7 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProductsScreen(bool isMobile) {
-    // Kategoriye göre filtrele
     List<Product> filteredProducts = _selectedCategoryIndex == 0
         ? products
         : products
@@ -137,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: [
-        // 🏷️ KATEGORİ FİLTRELERİ
+        // Kategori Filtreleri
         SizedBox(
           height: 60,
           child: ListView.builder(
@@ -178,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        // 📦 ÜRÜNLER GRID
+        // Ürünler Listesi
         Expanded(
           child: filteredProducts.isEmpty
               ? Center(
@@ -205,11 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.of(context).size.width > 800
-                        ? 4
-                        : MediaQuery.of(context).size.width > 600
-                            ? 3
-                            : 2,
+                    crossAxisCount: isMobile ? 2 : 3,
                     childAspectRatio: 0.75,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
@@ -219,16 +220,36 @@ class _HomeScreenState extends State<HomeScreen> {
                     final product = filteredProducts[index];
                     return ProductItem(
                       product: product,
+                      firestoreService: _firestoreService,
                       onAdd: () {
-                        setState(() => product.quantity++);
+                        setState(() {
+                          product.quantity++;
+                        });
                       },
                       onRemove: () {
-                        if (product.quantity > 0) {
-                          setState(() => product.quantity--);
-                        }
+                        setState(() {
+                          if (product.quantity > 0) {
+                            product.quantity--;
+                          }
+                        });
                       },
                       onAddToCart: () {
                         setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '${product.name} x${product.quantity} sepete eklendi ☕',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            duration: const Duration(seconds: 2),
+                            backgroundColor: Colors.green.shade600,
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.all(8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
                       },
                     );
                   },
@@ -240,6 +261,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _logout() async {
     try {
+      // Sepeti temizle çıkış yapırken
+      for (var product in products) {
+        product.quantity = 0;
+      }
+
       await _authService.signOut();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
