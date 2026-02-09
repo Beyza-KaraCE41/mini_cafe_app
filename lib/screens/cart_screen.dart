@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product.dart';
 import '../services/firestore_service.dart';
-import 'orders_screen_user.dart';
+import 'home_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final List<Product> cartItems;
@@ -105,19 +105,6 @@ class _CartScreenState extends State<CartScreen> {
           onPressed: () => Navigator.pop(context),
           tooltip: 'Geri Dön',
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history, size: 24),
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const OrdersScreenUser()),
-              );
-            },
-            tooltip: 'Siparişlerim',
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -464,7 +451,7 @@ class _CartScreenState extends State<CartScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      // Siparişi oluştur
+      // Siparışı oluştur
       await _firestoreService.createOrder(
         user.uid,
         widget.cartItems.where((p) => p.quantity > 0).toList(),
@@ -482,13 +469,13 @@ class _CartScreenState extends State<CartScreen> {
           isError: false,
         );
 
-        // 2 saniye sonra OrdersScreenUser'e yönlendir
+        // 2 saniye sonra HomeScreen'e yönlendir
         await Future.delayed(const Duration(seconds: 2));
 
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const OrdersScreenUser()),
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
           );
         }
       }
