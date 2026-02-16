@@ -54,7 +54,6 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
       child: StreamBuilder<List<order_model.Order>>(
         stream: _firestoreService.getUserOrders(user.uid),
         builder: (context, snapshot) {
-          // Loading State
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
@@ -63,7 +62,6 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
             );
           }
 
-          // Error State
           if (snapshot.hasError) {
             return Center(
               child: Column(
@@ -83,18 +81,6 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                       color: Colors.brown.shade800,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      'Hata: ${snapshot.error.toString().substring(0, 100)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red.shade600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => setState(() {}),
@@ -111,7 +97,6 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
             );
           }
 
-          // Empty State
           final orders = snapshot.data ?? [];
 
           if (orders.isEmpty) {
@@ -146,7 +131,6 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
             );
           }
 
-          // Orders List
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: orders.length,
@@ -374,6 +358,33 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                       ),
                     ),
                   ),
+
+                  // Kargo Takibi (Hazır ise)
+                  if (order.status == 'Hazır')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          final cargoNum = 'TRK${DateTime.now().millisecond}';
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '🚚 Kargo numarası: $cargoNum',
+                              ),
+                              backgroundColor: Colors.blue,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.local_shipping, size: 16),
+                        label: const Text('Kargo Takibi'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade600,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
