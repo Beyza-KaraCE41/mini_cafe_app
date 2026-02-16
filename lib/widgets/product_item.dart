@@ -68,9 +68,8 @@ class _ProductItemState extends State<ProductItem> {
                   ),
                   child: Stack(
                     children: [
-                      // ÜRÜN RESMİ
                       Container(
-                        height: 130,
+                        height: 120,
                         width: double.infinity,
                         color: Colors.grey.shade200,
                         child: Image.asset(
@@ -84,18 +83,20 @@ class _ProductItemState extends State<ProductItem> {
                                 children: [
                                   Icon(
                                     Icons.coffee,
-                                    size: 48,
+                                    size: 40,
                                     color: Colors.white.withOpacity(0.7),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 4),
                                   Text(
                                     widget.product.name,
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 12,
+                                      fontSize: 10,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
@@ -140,8 +141,8 @@ class _ProductItemState extends State<ProductItem> {
                             }
                           },
                           child: Container(
-                            width: 36,
-                            height: 36,
+                            width: 32,
+                            height: 32,
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(10),
@@ -157,7 +158,7 @@ class _ProductItemState extends State<ProductItem> {
                                   ? Icons.favorite
                                   : Icons.favorite_outline,
                               color: Colors.red.shade400,
-                              size: 20,
+                              size: 18,
                             ),
                           ),
                         ),
@@ -170,26 +171,18 @@ class _ProductItemState extends State<ProductItem> {
                           child: Center(
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
+                                horizontal: 12,
+                                vertical: 6,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade600,
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.block,
-                                      color: Colors.white, size: 16),
-                                  SizedBox(width: 6),
-                                  Text('Tükendi',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12)),
-                                ],
-                              ),
+                              child: const Text('Tükendi',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11)),
                             ),
                           ),
                         ),
@@ -201,8 +194,8 @@ class _ProductItemState extends State<ProductItem> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
+                      horizontal: 10,
+                      vertical: 8,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,50 +205,20 @@ class _ProductItemState extends State<ProductItem> {
                           child: Text(
                             widget.product.name,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.brown,
-                              height: 1.3,
+                              height: 1.2,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        SizedBox(
-                          height: 22,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.shade100,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: Colors.amber.shade300,
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                widget.product.category,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.brown.shade800,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
                           ),
                         ),
                         const Spacer(),
                         Text(
                           '${widget.product.price.toStringAsFixed(0)} TL',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Colors.amber.shade700,
                           ),
@@ -266,10 +229,10 @@ class _ProductItemState extends State<ProductItem> {
                 ),
 
                 // ACTION BUTTON
-                SizedBox(
-                  height: 44,
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: SizedBox(
+                    height: 36,
                     child: widget.product.quantity == 0
                         ? SizedBox(
                             width: double.infinity,
@@ -278,103 +241,78 @@ class _ProductItemState extends State<ProductItem> {
                                   ? () {
                                       widget.onAdd();
                                       widget.onAddToCart?.call();
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            '${widget.product.name} sepete eklendi ☕',
-                                            style:
-                                                const TextStyle(fontSize: 12),
-                                          ),
-                                          duration: const Duration(seconds: 2),
-                                          backgroundColor:
-                                              Colors.green.shade600,
-                                          behavior: SnackBarBehavior.floating,
-                                          margin: const EdgeInsets.all(8),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                      );
                                     }
                                   : null,
                               icon:
-                                  const Icon(Icons.add_shopping_cart, size: 16),
+                                  const Icon(Icons.add_shopping_cart, size: 14),
                               label: const Text('Ekle',
-                                  style: TextStyle(fontSize: 12)),
+                                  style: TextStyle(fontSize: 11)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.amber.shade700,
                                 foregroundColor: Colors.white,
                                 disabledBackgroundColor: Colors.grey.shade400,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 elevation: 0,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                               ),
                             ),
                           )
                         : Container(
                             decoration: BoxDecoration(
                               color: Colors.amber.shade50,
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(8),
                               border: Border.all(
                                 color: Colors.amber.shade300,
-                                width: 1.5,
+                                width: 1,
                               ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                IconButton(
-                                  icon: Icon(
+                                GestureDetector(
+                                  onTap: widget.onRemove,
+                                  child: Icon(
                                     Icons.remove_circle_outline,
                                     color: Colors.brown.shade700,
-                                    size: 20,
-                                  ),
-                                  onPressed: widget.onRemove,
-                                  splashRadius: 16,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
+                                    size: 18,
                                   ),
                                 ),
                                 Container(
-                                  width: 32,
-                                  height: 32,
+                                  width: 28,
+                                  height: 28,
                                   decoration: BoxDecoration(
                                     color: Colors.amber.shade700,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Center(
                                     child: Text(
                                       '${widget.product.quantity}',
                                       style: const TextStyle(
-                                        fontSize: 14,
+                                        fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
                                       ),
                                     ),
                                   ),
                                 ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.add_circle,
-                                    color: Colors.amber.shade700,
-                                    size: 20,
-                                  ),
-                                  onPressed: widget.product.quantity <
+                                GestureDetector(
+                                  onTap: widget.product.quantity <
                                           widget.product.stock
-                                      ? widget.onAdd
+                                      ? () {
+                                          widget.onAdd();
+                                          widget.onAddToCart?.call();
+                                        }
                                       : null,
-                                  splashRadius: 16,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
+                                  child: Icon(
+                                    Icons.add_circle,
+                                    color: widget.product.quantity <
+                                            widget.product.stock
+                                        ? Colors.amber.shade700
+                                        : Colors.grey,
+                                    size: 18,
                                   ),
                                 ),
                               ],
