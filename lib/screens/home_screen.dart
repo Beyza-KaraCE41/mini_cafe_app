@@ -10,18 +10,26 @@ import 'profile_screen.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int initialIndex;
+
+  const HomeScreen({super.key, this.initialIndex = 0});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedNavIndex = 0;
+  late int _selectedNavIndex;
   int _selectedCategoryIndex = 0;
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
   final List<String> categories = ['Tümü', 'Kahve', 'Çay', 'Tatlı'];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedNavIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ).then((_) {
-                    setState(() {}); // CartScreen'den dönünce güncelle
+                    setState(() {});
                   });
                 },
               ),
@@ -111,25 +119,55 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _selectedNavIndex,
         onTap: (index) => setState(() => _selectedNavIndex = index),
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Anasayfa',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
+            icon: _buildFavoriteBadge(),
             label: 'Favoriler',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.shopping_bag),
             label: 'Siparişlerim',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.account_circle),
             label: 'Profil',
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFavoriteBadge() {
+    return Stack(
+      children: [
+        const Icon(Icons.favorite),
+        Positioned(
+          right: -8,
+          top: -8,
+          child: Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+            child: const Center(
+              child: Text(
+                '!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
