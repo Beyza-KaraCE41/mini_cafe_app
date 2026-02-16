@@ -51,7 +51,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        Navigator.pop(context, true); // true = ödeme başarılı
+        Navigator.pop(context, true);
       }
     });
   }
@@ -60,7 +60,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ödeme',
+        title: const Text('Güvenli Ödeme',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
         elevation: 0,
         leading: IconButton(
@@ -86,26 +86,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Sipariş Özeti',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.brown,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.brown.shade800,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -113,15 +115,30 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           '${widget.cartItems.where((p) => p.quantity > 0).length} ürün',
                           style: TextStyle(
                             color: Colors.brown.shade600,
-                            fontSize: 14,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Text(
-                          '${widget.total.toStringAsFixed(2)} TL',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                            fontSize: 16,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.green.shade200,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            '${widget.total.toStringAsFixed(2)} TL',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.green.shade700,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ],
@@ -129,46 +146,29 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               // Kart Bilgileri
-              const Text(
+              Text(
                 'Kart Bilgileri',
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.brown,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.brown.shade800,
+                  letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 16),
 
               // Kart Numarası
-              TextField(
+              _buildTextField(
                 controller: _cardNumberController,
-                style: const TextStyle(color: Colors.brown),
+                hint: '1234 5678 9012 3456',
+                label: 'Kart Numarası',
+                icon: Icons.credit_card,
                 keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: '1234 5678 9012 3456',
-                  hintStyle: const TextStyle(color: Colors.brown),
-                  prefixIcon:
-                      const Icon(Icons.credit_card, color: Colors.brown),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Colors.amber.shade700,
-                      width: 2,
-                    ),
-                  ),
-                ),
                 maxLength: 19,
                 onChanged: (value) {
-                  // Otomatik boşluk ekle
                   if (value.length == 4 ||
                       value.length == 9 ||
                       value.length == 14) {
@@ -183,27 +183,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
               const SizedBox(height: 16),
 
               // Kart Sahibi
-              TextField(
+              _buildTextField(
                 controller: _cardHolderController,
-                style: const TextStyle(color: Colors.brown),
-                decoration: InputDecoration(
-                  hintText: 'Kart Sahibi Adı',
-                  hintStyle: const TextStyle(color: Colors.brown),
-                  prefixIcon: const Icon(Icons.person, color: Colors.brown),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Colors.amber.shade700,
-                      width: 2,
-                    ),
-                  ),
-                ),
+                hint: 'Örn: AHMET YILMAZ',
+                label: 'Kart Sahibi Adı',
+                icon: Icons.person,
               ),
               const SizedBox(height: 16),
 
@@ -211,68 +195,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: _buildTextField(
                       controller: _expiryController,
-                      style: const TextStyle(color: Colors.brown),
+                      hint: 'AA/YY',
+                      label: 'Tarih',
+                      icon: Icons.calendar_today,
                       keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'AA/YY',
-                        hintStyle: const TextStyle(color: Colors.brown),
-                        prefixIcon: const Icon(Icons.calendar_today,
-                            color: Colors.brown),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Colors.amber.shade700,
-                            width: 2,
-                          ),
-                        ),
-                      ),
                       maxLength: 5,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextField(
+                    child: _buildTextField(
                       controller: _cvcController,
-                      style: const TextStyle(color: Colors.brown),
+                      hint: '123',
+                      label: 'CVC',
+                      icon: Icons.lock,
                       keyboardType: TextInputType.number,
-                      obscureText: _obscureCVC,
-                      decoration: InputDecoration(
-                        hintText: 'CVC',
-                        hintStyle: const TextStyle(color: Colors.brown),
-                        prefixIcon: const Icon(Icons.lock, color: Colors.brown),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureCVC
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: Colors.brown,
-                          ),
-                          onPressed: () =>
-                              setState(() => _obscureCVC = !_obscureCVC),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Colors.amber.shade700,
-                            width: 2,
-                          ),
-                        ),
-                      ),
                       maxLength: 3,
+                      obscureText: _obscureCVC,
+                      onSuffixPressed: () =>
+                          setState(() => _obscureCVC = !_obscureCVC),
+                      showSuffix: true,
                     ),
                   ),
                 ],
@@ -282,35 +226,36 @@ class _PaymentScreenState extends State<PaymentScreen> {
               // Ödeme Butonu
               SizedBox(
                 width: double.infinity,
-                height: 52,
+                height: 56,
                 child: ElevatedButton.icon(
                   onPressed: _isProcessing ? null : _processPayment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber.shade700,
                     disabledBackgroundColor: Colors.grey.shade400,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     elevation: 0,
                   ),
                   icon: _isProcessing
                       ? SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 22,
+                          height: 22,
                           child: CircularProgressIndicator(
                             color: Colors.white,
-                            strokeWidth: 2.5,
+                            strokeWidth: 3,
                           ),
                         )
-                      : const Icon(Icons.check, size: 22),
+                      : const Icon(Icons.check_circle, size: 24),
                   label: Text(
                     _isProcessing
                         ? 'İşleniyor...'
                         : '${widget.total.toStringAsFixed(2)} TL Öde ☕',
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       color: Colors.white,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
@@ -320,47 +265,51 @@ class _PaymentScreenState extends State<PaymentScreen> {
               // İptal Butonu
               SizedBox(
                 width: double.infinity,
-                height: 44,
-                child: OutlinedButton(
+                height: 50,
+                child: OutlinedButton.icon(
                   onPressed: _isProcessing
                       ? null
                       : () => Navigator.pop(context, false),
+                  icon: const Icon(Icons.close, size: 20),
+                  label: const Text('İptal Et'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.brown.shade700,
                     side: BorderSide(
                       color: Colors.brown.shade700,
-                      width: 1.5,
+                      width: 2,
                     ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text('İptal'),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // Güvenlik Uyarısı
+              // Güvenlik Bilgisi
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.blue.shade200,
-                    width: 1,
+                    color: Colors.blue.shade300,
+                    width: 1.5,
                   ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.lock, color: Colors.blue.shade600, size: 20),
-                    const SizedBox(width: 8),
+                    Icon(Icons.lock_outline,
+                        color: Colors.blue.shade700, size: 22),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Kart bilgileri güvenli şekilde işlenmektedir',
+                        '🔒 Kart bilgileri SSL şifrelemesi ile korunmaktadır.',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
                         ),
                       ),
                     ),
@@ -371,6 +320,83 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required String label,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    int? maxLength,
+    Function(String)? onChanged,
+    bool obscureText = false,
+    bool showSuffix = false,
+    VoidCallback? onSuffixPressed,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.brown.shade700,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          obscureText: obscureText,
+          maxLength: maxLength,
+          onChanged: onChanged,
+          style: TextStyle(
+            color: Colors.brown.shade800,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(
+              color: Colors.brown.shade300,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+            prefixIcon: Icon(icon, color: Colors.amber.shade700, size: 22),
+            suffixIcon: showSuffix
+                ? IconButton(
+                    icon: Icon(
+                      obscureText ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.brown.shade600,
+                      size: 20,
+                    ),
+                    onPressed: onSuffixPressed,
+                  )
+                : null,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Colors.amber.shade700,
+                width: 2,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
