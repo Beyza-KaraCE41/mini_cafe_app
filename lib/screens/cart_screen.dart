@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/product.dart';
 import '../services/firestore_service.dart';
 import 'home_screen.dart';
+import 'payment_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final List<Product> cartItems;
@@ -15,7 +16,6 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  bool _isProcessing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +116,6 @@ class _CartScreenState extends State<CartScreen> {
         ),
         child: Column(
           children: [
-            // Cart Items List
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
@@ -147,7 +146,6 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                         child: Row(
                           children: [
-                            // Product Image
                             ClipRRect(
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
@@ -169,8 +167,6 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                             ),
                             const SizedBox(width: 12),
-
-                            // Product Info
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,8 +214,6 @@ class _CartScreenState extends State<CartScreen> {
                                 ],
                               ),
                             ),
-
-                            // Delete Button
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -272,8 +266,6 @@ class _CartScreenState extends State<CartScreen> {
                 },
               ),
             ),
-
-            // Summary Card
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -292,7 +284,6 @@ class _CartScreenState extends State<CartScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // Subtotal
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -314,14 +305,10 @@ class _CartScreenState extends State<CartScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-
-                  // Divider
                   Divider(
                     color: Colors.grey.shade300,
                     height: 20,
                   ),
-
-                  // Delivery
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -343,14 +330,10 @@ class _CartScreenState extends State<CartScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-
-                  // Divider
                   Divider(
                     color: Colors.grey.shade300,
                     height: 20,
                   ),
-
-                  // Total
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -373,34 +356,21 @@ class _CartScreenState extends State<CartScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  // Payment Button
                   SizedBox(
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton.icon(
-                      onPressed:
-                          _isProcessing ? null : () => _processPayment(total),
+                      onPressed: () => _goToPayment(total),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber.shade700,
-                        disabledBackgroundColor: Colors.grey.shade400,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 0,
                       ),
-                      icon: _isProcessing
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                          : const Icon(Icons.payment, size: 22),
+                      icon: const Icon(Icons.payment, size: 22),
                       label: Text(
-                        _isProcessing ? 'İşleniyor...' : 'Ödeme Yap ☕',
+                        'Ödeme Yap ☕',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -410,8 +380,6 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Geri Dön Butonu
                   SizedBox(
                     width: double.infinity,
                     height: 44,
@@ -440,7 +408,24 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Future<void> _processPayment(double total) async {
+  Future<void> _goToPayment(double total) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentScreen(
+          total: total,
+          cartItems: widget.cartItems,
+        ),
+      ),
+    );
+
+    // Ödeme başarılı mı?
+    if (result == true && mounted) {
+      await _processOrder(total);
+    }
+  }
+
+  Future<void> _processOrder(double total) async {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -448,10 +433,8 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
 
-    setState(() => _isProcessing = true);
-
     try {
-      // Siparışı oluştur
+      // Siparişi Firestore'a kaydet
       await _firestoreService.createOrder(
         user.uid,
         widget.cartItems.where((p) => p.quantity > 0).toList(),
@@ -464,32 +447,25 @@ class _CartScreenState extends State<CartScreen> {
       }
 
       if (mounted) {
-        _showSnackBar(
-          'Siparişiniz alındı! 🎉',
-          isError: false,
-        );
+        _showSnackBar('✅ Siparişiniz alındı! 🎉', isError: false);
 
-        // 2 saniye sonra HomeScreen'e yönlendir
+        // 2 saniye bekle
         await Future.delayed(const Duration(seconds: 2));
 
         if (mounted) {
+          // Siparişlerim sekmesine (index 2) git
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(
+              builder: (_) => const HomeScreen(initialIndex: 2),
+            ),
             (route) => false,
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        String errorMsg = e.toString();
-        if (errorMsg.length > 100) {
-          errorMsg = '${errorMsg.substring(0, 100)}...';
-        }
-        _showSnackBar('Hata: $errorMsg', isError: true);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
+        _showSnackBar('❌ Hata: ${e.toString().substring(0, 50)}',
+            isError: true);
       }
     }
   }
