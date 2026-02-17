@@ -12,18 +12,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
   final AuthService _authService = AuthService();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _isSignUp = false;
-  String _selectedRole = 'customer'; // 'customer' veya 'admin'
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -32,47 +35,69 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? Colors.red : Colors.green,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
 
+  // EMAIL'E GÖRE ROL BELİRLE
+  String _determineRole(String email) {
+    if (email.toLowerCase().contains('admin')) {
+      return 'admin';
+    }
+    return 'customer';
+  }
+
   Future<void> _handleAuth() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showSnackBar('Lütfen tüm alanları doldurun', isError: true);
+      _showSnackBar('Lütfen email ve şifre girin', isError: true);
+      return;
+    }
+
+    if (_isSignUp && _nameController.text.isEmpty) {
+      _showSnackBar('Lütfen adınızı girin', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
+      final email = _emailController.text.trim();
+
       if (_isSignUp) {
         // KAYIT OL
+        // 1. Rol otomatik belirle
+        final role = _determineRole(email);
+
+        // 2. Firebase Auth'a kayıt (3 parametre: email, password, role)
         await _authService.signUpWithEmail(
-          _emailController.text.trim(),
+          email,
           _passwordController.text,
-          _selectedRole,
+          role,
         );
-        _showSnackBar('Kayıt başarılı! Giriş yapılıyor...');
 
+        _showSnackBar('✅ Kayıt başarılı! Giriş yapılıyor...');
+
+        // 3. Otomatik giriş yap
         await Future.delayed(const Duration(milliseconds: 500));
+        await _authService.signInWithEmail(email, _passwordController.text);
 
-        await _authService.signInWithEmail(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
-        print('✅ Kayıt + Login OK - Role: $_selectedRole');
+        if (mounted) {
+          _emailController.clear();
+          _passwordController.clear();
+          _nameController.clear();
+          _phoneController.clear();
+          _addressController.clear();
+          print('✅ Kayıt + Login OK - Role: $role');
+        }
       } else {
         // GİRİŞ YAP
-        await _authService.signInWithEmail(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
-        _showSnackBar('Giriş başarılı!');
-        print('✅ Login OK');
+        await _authService.signInWithEmail(email, _passwordController.text);
+        _showSnackBar('✅ Giriş başarılı!');
+        print('✅ Login OK - Email: $email');
       }
     } catch (e) {
-      _showSnackBar('Hata: ${e.toString()}', isError: true);
+      _showSnackBar('❌ Hata: ${e.toString()}', isError: true);
       print('❌ Error: $e');
     } finally {
       if (mounted) {
@@ -99,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 🐦 TWEETY RESMİ
+                // ☕ LOGO - TWEETY RESMİ
                 Container(
                   width: 180,
                   height: 180,
@@ -127,15 +152,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Image.asset(
                         'assets/images/tweety.png',
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(
-                              Icons.coffee,
-                              size: 100,
-                              color: Colors.brown.shade700,
-                            ),
-                          );
-                        },
                       ),
                     ),
                   ),
@@ -144,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // ☕ BAŞLIK
                 Text(
-                  'Mini Kafeye',
+                  'Mini Cafe ☕',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 36,
@@ -162,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Hoşgeldinizzz',
+                  _isSignUp ? 'Kayıt Ol' : 'Giriş Yap',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 32,
@@ -184,55 +200,32 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 35),
 
-                // ⭐ ROL SEÇİMİ (KAYIT SAYFASINDA)
-                if (_isSignUp)
-                  Column(
-                    children: [
-                      const Text(
-                        'Rol Seçin:',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                // KAYIT DURUMUNDA AD
+                if (_isSignUp) ...[
+                  TextField(
+                    controller: _nameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Ad Soyad',
+                      hintStyle: const TextStyle(color: Colors.white70),
+                      prefixIcon:
+                          const Icon(Icons.person, color: Colors.white70),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.amber.shade400,
+                          width: 2,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: RadioListTile<String>(
-                              title: const Text(
-                                'Müşteri',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              value: 'customer',
-                              groupValue: _selectedRole,
-                              onChanged: (value) {
-                                setState(
-                                    () => _selectedRole = value ?? 'customer');
-                              },
-                              activeColor: Colors.amber.shade400,
-                            ),
-                          ),
-                          Expanded(
-                            child: RadioListTile<String>(
-                              title: const Text(
-                                'Admin',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              value: 'admin',
-                              groupValue: _selectedRole,
-                              onChanged: (value) {
-                                setState(
-                                    () => _selectedRole = value ?? 'admin');
-                              },
-                              activeColor: Colors.amber.shade400,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                ],
 
                 // EMAIL
                 TextField(
@@ -245,10 +238,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.1),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
                         color: Colors.amber.shade400,
                         width: 2,
@@ -280,10 +273,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.1),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
                         color: Colors.amber.shade400,
                         width: 2,
@@ -291,18 +284,74 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
+
+                // KAYIT DURUMUNDA TELEFON
+                if (_isSignUp) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _phoneController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Telefon',
+                      hintStyle: const TextStyle(color: Colors.white70),
+                      prefixIcon:
+                          const Icon(Icons.phone, color: Colors.white70),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.amber.shade400,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+
+                // KAYIT DURUMUNDA ADRES
+                if (_isSignUp) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _addressController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Adres',
+                      hintStyle: const TextStyle(color: Colors.white70),
+                      prefixIcon:
+                          const Icon(Icons.location_on, color: Colors.white70),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.amber.shade400,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
+
                 const SizedBox(height: 32),
 
                 // BUTTON
                 SizedBox(
                   width: double.infinity,
+                  height: 50,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleAuth,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade700,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: _isLoading
@@ -310,7 +359,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : Text(
                             _isSignUp ? 'Kayıt Ol ☕' : 'Giriş Yap ☕',
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -319,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // TOGGLE SIGN UP / SIGN IN
+                // TOGGLE
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -333,8 +382,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () {
                         setState(() {
                           _isSignUp = !_isSignUp;
+                          _emailController.clear();
                           _passwordController.clear();
-                          _selectedRole = 'customer';
+                          _nameController.clear();
+                          _phoneController.clear();
+                          _addressController.clear();
                         });
                       },
                       child: Text(
