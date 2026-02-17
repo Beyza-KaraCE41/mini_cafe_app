@@ -64,31 +64,38 @@ class AuthCheck extends StatelessWidget {
           }
 
           // ✅ User varsa
-          if (snapshot.hasData) {
+          if (snapshot.hasData && snapshot.data != null) {
             return FutureBuilder<String>(
               future: authService.getUserRole(),
               builder: (context, roleSnapshot) {
                 if (roleSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.brown),
+                    ),
+                  );
                 }
 
                 final role = roleSnapshot.data ?? 'customer';
-                print(
-                    '✅ USER LOGGED IN: ${snapshot.data?.email} | Role: $role');
+                final userEmail = snapshot.data?.email ?? 'Unknown';
+
+                print('✅ USER LOGGED IN: $userEmail | Role: $role');
 
                 // 👨‍💼 ADMIN MI?
                 if (role == 'admin') {
+                  print('🛠️ Admin Dashboard açılıyor...');
                   return const AdminDashboard();
                 }
 
                 // 👤 NORMAL CUSTOMER
+                print('🏠 Home Screen açılıyor...');
                 return const HomeScreen();
               },
             );
           }
 
           // 🔐 User yoksa Login
-          print('🔐 LOGIN SCREEN');
+          print('🔐 LOGIN SCREEN gösteriliyor...');
           return const LoginScreen();
         },
       ),
