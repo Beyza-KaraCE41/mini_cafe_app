@@ -63,17 +63,24 @@ class AuthCheck extends StatelessWidget {
             );
           }
 
-          // ✅ User varsa
+          // ✅ User varsa - ROL KONTROL ET
           if (snapshot.hasData && snapshot.data != null) {
             return FutureBuilder<String>(
               future: authService.getUserRole(),
               builder: (context, roleSnapshot) {
+                // Rol yükleniyor
                 if (roleSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.brown),
                     ),
                   );
+                }
+
+                // Rol hatası varsa customer olarak gir
+                if (roleSnapshot.hasError) {
+                  print('⚠️ Rol yükleme hatası: ${roleSnapshot.error}');
+                  return const HomeScreen();
                 }
 
                 final role = roleSnapshot.data ?? 'customer';
