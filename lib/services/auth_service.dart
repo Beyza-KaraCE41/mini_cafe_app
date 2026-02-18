@@ -24,11 +24,14 @@ class AuthService {
 
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
-  // 📝 KAYIT OL (Müşteri veya Admin)
+  // 📝 KAYIT OL (GÜNCELLENDİ: Profil bilgileriyle birlikte)
   Future<UserCredential?> signUpWithEmail(
     String email,
     String password,
-    String role, // 'customer' veya 'admin'
+    String role,
+    String name, // Yeni parametre
+    String phone, // Yeni parametre
+    String address, // Yeni parametre
   ) async {
     try {
       UserCredential userCredential =
@@ -37,14 +40,14 @@ class AuthService {
         password: password,
       );
 
-      // Firestore'a user bilgisi kaydet
+      // Firestore'a user bilgisi kaydet (DOLU OLARAK)
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'email': email,
         'role': role,
+        'name': name, // Kaydediliyor
+        'phone': phone, // Kaydediliyor
+        'address': address, // Kaydediliyor
         'createdAt': FieldValue.serverTimestamp(),
-        'name': '',
-        'phone': '',
-        'address': '',
       });
 
       return userCredential;
