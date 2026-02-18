@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/order.dart' as order_model;
+import '../models/product.dart'; // Resimleri bulmak için ekledik
 import '../services/firestore_service.dart';
 
 class OrdersScreenUser extends StatefulWidget {
@@ -23,20 +24,10 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.lock_outline,
-                size: 80,
-                color: Colors.brown.withOpacity(0.2),
-              ),
+              Icon(Icons.lock_outline,
+                  size: 80, color: Colors.brown.withOpacity(0.2)),
               const SizedBox(height: 16),
-              Text(
-                'Giriş yapmanız gerekiyor',
-                style: TextStyle(
-                  color: Colors.brown.shade600,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              const Text('Giriş yapmanız gerekiyor'),
             ],
           ),
         ),
@@ -55,46 +46,11 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
         stream: _firestoreService.getUserOrders(user.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.brown),
-              ),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 80,
-                    color: Colors.red.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Bir hata oluştu',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.brown.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => setState(() {}),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text('Tekrar Dene'),
-                  ),
-                ],
-              ),
-            );
+            return const Center(child: Text('Bir hata oluştu'));
           }
 
           final orders = snapshot.data ?? [];
@@ -104,28 +60,14 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.inbox_outlined,
-                    size: 100,
-                    color: Colors.brown.withOpacity(0.15),
-                  ),
+                  Icon(Icons.inbox_outlined,
+                      size: 100, color: Colors.brown.withOpacity(0.15)),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Henüz Siparış Yok',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.brown,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'İlk siparışını ver! ☕',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.brown.withOpacity(0.6),
-                    ),
-                  ),
+                  const Text('Henüz Sipariş Yok',
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.brown)),
                 ],
               ),
             );
@@ -148,16 +90,17 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
     Color statusColor = _getStatusColor(order.status);
     IconData statusIcon = _getStatusIcon(order.status);
 
+    String orderId = order.id.length > 8
+        ? order.id.substring(0, 8).toUpperCase()
+        : order.id.toUpperCase();
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: statusColor.withOpacity(0.3),
-            width: 1.5,
-          ),
+          side: BorderSide(color: statusColor.withOpacity(0.3), width: 1.5),
         ),
         child: ExpansionTile(
           leading: Container(
@@ -167,31 +110,18 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
               color: statusColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              statusIcon,
-              color: statusColor,
-              size: 24,
-            ),
+            child: Icon(statusIcon, color: statusColor, size: 24),
           ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Sipariş #${order.id.substring(0, 8).toUpperCase()}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.brown,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _formatDate(order.orderDate),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
+              Text('Sipariş #$orderId',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.brown)),
+              Text(_formatDate(order.orderDate),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ],
           ),
           trailing: Container(
@@ -199,192 +129,94 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: statusColor.withOpacity(0.4),
-                width: 1,
-              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(statusIcon, size: 14, color: statusColor),
-                const SizedBox(width: 4),
-                Text(
-                  order.status,
-                  style: TextStyle(
+            child: Text(order.status,
+                style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: statusColor,
-                  ),
-                ),
-              ],
-            ),
+                    color: statusColor)),
           ),
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Divider(),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Sipariş Detayları',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: Colors.brown,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  // 🛒 ÜRÜN LİSTESİ (RESİMLİ)
+                  ...order.items.map((item) {
+                    // Ürün isminden veya ID'den global ürünü bulmaya çalışıyoruz
+                    // (Sipariş geçmişinde productId varsa onu kullanmak en doğrusudur,
+                    // yoksa isimden eşleştirmeye çalışıyoruz)
+                    Product? matchedProduct;
+                    try {
+                      // Önce isme göre deneyelim (basit çözüm)
+                      matchedProduct =
+                          products.firstWhere((p) => p.name == item.name);
+                    } catch (e) {
+                      matchedProduct = null;
+                    }
 
-                  // Ürün Listesi
-                  if (order.items.isNotEmpty)
-                    ...order.items.map((item) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.name,
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8, top: 8),
+                      child: Row(
+                        children: [
+                          // 🖼️ ÜRÜN RESMİ
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              color: Colors.grey.shade200,
+                              child: matchedProduct != null
+                                  ? Image.asset(matchedProduct.imagePath,
+                                      fit: BoxFit.cover)
+                                  : const Icon(Icons.coffee,
+                                      size: 20, color: Colors.grey),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // İSİM VE ADET
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(item.name,
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: Colors.brown,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${item.quantity} x ${item.price} TL',
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14)),
+                                Text('${item.quantity} adet x ${item.price} TL',
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600)),
+                              ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${(item.price * item.quantity).toStringAsFixed(2)} TL',
-                                style: const TextStyle(
+                          ),
+
+                          // TOPLAM FİYAT
+                          Text(
+                              '${(item.price * item.quantity).toStringAsFixed(0)} TL',
+                              style: const TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList()
-                  else
-                    Text(
-                      'Ürün bulunamadı',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                        fontStyle: FontStyle.italic,
+                                  color: Colors.brown)),
+                        ],
                       ),
-                    ),
+                    );
+                  }).toList(),
 
                   const Divider(),
-                  const SizedBox(height: 8),
-
-                  // Toplam Tutar
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Toplam Tutar',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Colors.brown,
-                        ),
-                      ),
-                      Text(
-                        '${order.total.toStringAsFixed(2)} TL',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Colors.green,
-                        ),
-                      ),
+                      const Text('Toplam Tutar',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('${order.total.toStringAsFixed(2)} TL',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.green)),
                     ],
                   ),
-
-                  // Status Badge
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: statusColor.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(statusIcon, color: statusColor, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Durum: ${order.status}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Kargo Takibi (Hazır ise)
-                  if (order.status == 'Hazır')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          final cargoNum = 'TRK${DateTime.now().millisecond}';
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '🚚 Kargo numarası: $cargoNum',
-                              ),
-                              backgroundColor: Colors.blue,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.local_shipping, size: 16),
-                        label: const Text('Kargo Takibi'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
