@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_service.dart';
+import '../models/product.dart'; // Global products listesini kullanmak için ekledik
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -10,263 +11,200 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  Future<void> _removeFavorite(String productId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('favorites')
-            .doc(productId)
-            .delete();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Favorilerden kaldırıldı'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        print('Favori silme hatası: $e');
-      }
-    }
-  }
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Favorilerim ❤️',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-          elevation: 0,
-        ),
-        body: const Center(
-          child: Text('Giriş yapmanız gerekiyor'),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline,
+                size: 80, color: Colors.brown.withOpacity(0.2)),
+            const SizedBox(height: 16),
+            const Text('Giriş yapmanız gerekiyor'),
+          ],
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Favorilerim ❤️',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
-        elevation: 0,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFFE0B2), Color(0xFFFFF8E1)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: StreamBuilder<QuerySnapshot>(
-          stream: _firestore
-              .collection('users')
-              .doc(user.uid)
-              .collection('favorites')
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            }
-
-            if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Colors.red.shade300,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Bir hata oluştu'),
-                  ],
-                ),
-              );
-            }
-
-            final docs = snapshot.data?.docs ?? [];
-
-            if (docs.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.favorite_border,
-                      size: 100,
-                      color: Colors.brown.withOpacity(0.15),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Henüz Favori Yok',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.brown,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Beğendiğin ürünleri buraya ekle! ❤️',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.brown.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: MediaQuery.of(context).size.width > 800 ? 3 : 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.75,
-              ),
-              itemCount: docs.length,
-              itemBuilder: (context, index) {
-                final doc = docs[index];
-                final data = doc.data() as Map<String, dynamic>;
-
-                return _buildFavoriteCard(
-                  productId: doc.id,
-                  name: data['name'] ?? 'Ürün',
-                  price: data['price'] ?? 0,
-                  imagePath: data['imagePath'] ?? '',
-                  category: data['category'] ?? '',
-                );
-              },
-            );
-          },
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFFFE0B2), Color(0xFFFFF8E1)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
       ),
-    );
-  }
+      child: StreamBuilder(
+        stream: _firestoreService.getUserFavorites(user.uid),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-  Widget _buildFavoriteCard({
-    required String productId,
-    required String name,
-    required int price,
-    required String imagePath,
-    required String category,
-  }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: Colors.red.shade200,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          // Image
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              child: Stack(
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    color: Colors.grey.shade200,
-                    child: Image.asset(
-                      imagePath,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            size: 50,
-                            color: Colors.grey.shade400,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  // Favori İkonu
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.favorite,
-                          color: Colors.red,
-                          size: 22,
-                        ),
-                        onPressed: () => _removeFavorite(productId),
-                        padding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ),
+                  Icon(Icons.favorite_outline,
+                      size: 100, color: Colors.brown.withOpacity(0.2)),
+                  const SizedBox(height: 24),
+                  const Text('Henüz Favori Yok',
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.brown)),
+                  const SizedBox(height: 12),
+                  Text('Beğendiğin ürünleri favorilere ekle ❤️',
+                      style: TextStyle(
+                          fontSize: 14, color: Colors.brown.withOpacity(0.6))),
                 ],
               ),
-            ),
-          ),
+            );
+          }
 
-          // Info
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.brown,
+          final favorites = snapshot.data!.docs;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: favorites.length,
+            itemBuilder: (context, index) {
+              final favDoc = favorites[index];
+              final favData = favDoc.data() as Map<String, dynamic>;
+
+              // Firestore'daki ID
+              final productId = favDoc.id;
+
+              // 🛠️ DÜZELTME: Canlı veriyi Global 'products' listesinden buluyoruz
+              // Eğer global listede bulamazsa (silinmişse) favorideki eski veriyi kullanır.
+              Product product;
+              try {
+                product = products.firstWhere((p) => p.id == productId);
+              } catch (e) {
+                // Ürün global listeden silinmişse favorideki yedek veriyi kullan
+                product = Product(
+                  id: productId,
+                  name: favData['name'] ?? 'Bilinmeyen Ürün',
+                  price: favData['price'] ?? 0,
+                  category: favData['category'] ?? '',
+                  imagePath: favData['imagePath'] ?? '',
+                  stock: favData['stock'] ?? 0,
+                );
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: Colors.red.shade200, width: 1.5),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$price TL',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade700,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        // 🖼️ RESİM DÜZELTMESİ
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            color: Colors.grey.shade100,
+                            child: Image.asset(
+                              product.imagePath,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.coffee,
+                                    size: 40, color: Colors.grey);
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // BİLGİLER
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(product.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.brown),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                    color: Colors.amber.shade100,
+                                    borderRadius: BorderRadius.circular(6)),
+                                child: Text(product.category,
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.brown.shade700,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('${product.price} TL',
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber.shade700)),
+
+                                  // 📦 CANLI STOK GÖSTERİMİ
+                                  Text(
+                                      product.stock == 0
+                                          ? 'Tükendi'
+                                          : 'Stok: ${product.stock}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: product.stock == 0
+                                              ? Colors.red
+                                              : Colors.grey.shade600)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // SİLME BUTONU
+                        IconButton(
+                          icon: Icon(Icons.delete_outline,
+                              color: Colors.red.shade400, size: 28),
+                          onPressed: () {
+                            _firestoreService.removeFavorite(
+                                user.uid, productId);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      '${product.name} favorilerden kaldırıldı'),
+                                  backgroundColor: Colors.red.shade600,
+                                  duration: const Duration(seconds: 1)),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
+              );
+            },
+          );
+        },
       ),
     );
   }
