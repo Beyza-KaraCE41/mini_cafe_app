@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/order.dart' as order_model;
-import '../models/product.dart'; // Resimleri bulmak için ekledik
+import '../models/product.dart';
 import '../services/firestore_service.dart';
 
 class OrdersScreenUser extends StatefulWidget {
@@ -13,6 +13,78 @@ class OrdersScreenUser extends StatefulWidget {
 
 class _OrdersScreenUserState extends State<OrdersScreenUser> {
   final FirestoreService _firestoreService = FirestoreService();
+
+  // İptal İşlemi
+  void _cancelOrder(String orderId) async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Siparişi İptal Et'),
+        content:
+            const Text('Siparişinizi iptal etmek istediğinize emin misiniz?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hayır')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Evet, İptal Et',
+                  style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _firestoreService.cancelOrder(orderId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sipariş iptal edildi.')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Hata: $e')));
+        }
+      }
+    }
+  }
+
+  // İade İşlemi
+  void _requestReturn(String orderId) async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('İade Talebi'),
+        content: const Text(
+            'Bu sipariş için iade talebi oluşturmak istiyor musunuz?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('İade Et')),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _firestoreService.requestReturn(orderId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  'İade talebi oluşturuldu. İade Kodu: TR-IADE-${orderId.substring(0, 4)}')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Hata: $e')));
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -142,14 +214,10 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
               child: Column(
                 children: [
                   const Divider(),
-                  // 🛒 ÜRÜN LİSTESİ (RESİMLİ)
+                  // 🛒 ÜRÜN LİSTESİ
                   ...order.items.map((item) {
-                    // Ürün isminden veya ID'den global ürünü bulmaya çalışıyoruz
-                    // (Sipariş geçmişinde productId varsa onu kullanmak en doğrusudur,
-                    // yoksa isimden eşleştirmeye çalışıyoruz)
                     Product? matchedProduct;
                     try {
-                      // Önce isme göre deneyelim (basit çözüm)
                       matchedProduct =
                           products.firstWhere((p) => p.name == item.name);
                     } catch (e) {
@@ -160,7 +228,6 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                       padding: const EdgeInsets.only(bottom: 8, top: 8),
                       child: Row(
                         children: [
-                          // 🖼️ ÜRÜN RESMİ
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
@@ -175,8 +242,6 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                             ),
                           ),
                           const SizedBox(width: 12),
-
-                          // İSİM VE ADET
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,8 +257,6 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                               ],
                             ),
                           ),
-
-                          // TOPLAM FİYAT
                           Text(
                               '${(item.price * item.quantity).toStringAsFixed(0)} TL',
                               style: const TextStyle(
@@ -217,6 +280,36 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                               color: Colors.green)),
                     ],
                   ),
+
+                  // 🛑 İŞLEM BUTONLARI (İPTAL / İADE)
+                  const SizedBox(height: 16),
+                  if (order.status == 'Beklemede')
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _cancelOrder(order.id),
+                        icon: const Icon(Icons.cancel, size: 18),
+                        label: const Text('Siparişi İptal Et'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                        ),
+                      ),
+                    ),
+
+                  if (order.status == 'Teslim Edildi')
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _requestReturn(order.id),
+                        icon: const Icon(Icons.assignment_return, size: 18),
+                        label: const Text('İade Talebi Oluştur'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blueGrey,
+                          side: const BorderSide(color: Colors.blueGrey),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -240,6 +333,10 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
         return Colors.purple;
       case 'Teslim Edildi':
         return Colors.green;
+      case 'İptal Edildi':
+        return Colors.red;
+      case 'İade Talebi':
+        return Colors.blueGrey;
       default:
         return Colors.grey;
     }
@@ -255,6 +352,10 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
         return Icons.done;
       case 'Teslim Edildi':
         return Icons.check_circle;
+      case 'İptal Edildi':
+        return Icons.cancel;
+      case 'İade Talebi':
+        return Icons.assignment_return;
       default:
         return Icons.info;
     }
