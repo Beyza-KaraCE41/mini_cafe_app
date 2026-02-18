@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'home_screen.dart';
+import 'admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -40,7 +43,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // EMAIL'E GÖRE ROL BELİRLE
   String _determineRole(String email) {
     if (email.toLowerCase().contains('admin')) {
       return 'admin';
@@ -66,39 +68,52 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (_isSignUp) {
         // KAYIT OL
-        // 1. Rol otomatik belirle
         final role = _determineRole(email);
 
-        // 2. Firebase Auth'a kayıt (3 parametre: email, password, role)
+        // GÜNCELLENDİ: Tüm bilgileri gönderiyoruz
         await _authService.signUpWithEmail(
           email,
           _passwordController.text,
           role,
+          _nameController.text.trim(), // Ad
+          _phoneController.text.trim(), // Telefon
+          _addressController.text.trim(), // Adres
         );
 
-        _showSnackBar('✅ Kayıt başarılı! Giriş yapılıyor...');
-
-        // 3. Otomatik giriş yap
-        await Future.delayed(const Duration(milliseconds: 500));
-        await _authService.signInWithEmail(email, _passwordController.text);
+        print('✅ Kayıt OK - Role: $role - Email: $email');
+        await _authService.signOut();
 
         if (mounted) {
-          _emailController.clear();
-          _passwordController.clear();
-          _nameController.clear();
-          _phoneController.clear();
-          _addressController.clear();
-          print('✅ Kayıt + Login OK - Role: $role');
+          setState(() {
+            _isSignUp = false;
+            _passwordController.clear();
+            _nameController.clear();
+            _phoneController.clear();
+            _addressController.clear();
+          });
+          _showSnackBar('✅ Kayıt başarılı! Şifreyi girerek giriş yapın.');
         }
       } else {
         // GİRİŞ YAP
         await _authService.signInWithEmail(email, _passwordController.text);
         _showSnackBar('✅ Giriş başarılı!');
-        print('✅ Login OK - Email: $email');
+
+        String role = await _authService.getUserRole();
+
+        if (!mounted) return;
+
+        if (role == 'admin') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const AdminDashboard()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
       }
     } catch (e) {
       _showSnackBar('❌ Hata: ${e.toString()}', isError: true);
-      print('❌ Error: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -124,16 +139,12 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ☕ LOGO - TWEETY RESMİ
                 Container(
                   width: 180,
                   height: 180,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.amber.shade400,
-                      width: 6,
-                    ),
+                    border: Border.all(color: Colors.amber.shade400, width: 6),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.5),
@@ -157,8 +168,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-
-                // ☕ BAŞLIK
                 Text(
                   'Mini Cafe ☕',
                   textAlign: TextAlign.center,
@@ -188,19 +197,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  _isSignUp
-                      ? 'Yeni hesap oluşturun'
-                      : 'Giriş yaparak devam edin',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 35),
-
-                // KAYIT DURUMUNDA AD
                 if (_isSignUp) ...[
                   TextField(
                     controller: _nameController,
@@ -213,21 +209,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       filled: true,
                       fillColor: Colors.white.withOpacity(0.1),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.amber.shade400,
-                          width: 2,
-                        ),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 16),
                 ],
-
-                // EMAIL
                 TextField(
                   controller: _emailController,
                   style: const TextStyle(color: Colors.white),
@@ -238,20 +224,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.1),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Colors.amber.shade400,
-                        width: 2,
-                      ),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // ŞİFRE
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -273,19 +249,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.1),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Colors.amber.shade400,
-                        width: 2,
-                      ),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
-
-                // KAYIT DURUMUNDA TELEFON
                 if (_isSignUp) ...[
                   const SizedBox(height: 16),
                   TextField(
@@ -299,21 +265,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       filled: true,
                       fillColor: Colors.white.withOpacity(0.1),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.amber.shade400,
-                          width: 2,
-                        ),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
-                ],
-
-                // KAYIT DURUMUNDA ADRES
-                if (_isSignUp) ...[
                   const SizedBox(height: 16),
                   TextField(
                     controller: _addressController,
@@ -326,23 +280,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       filled: true,
                       fillColor: Colors.white.withOpacity(0.1),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.amber.shade400,
-                          width: 2,
-                        ),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     maxLines: 2,
                   ),
                 ],
-
                 const SizedBox(height: 32),
-
-                // BUTTON
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -351,8 +294,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade700,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
@@ -367,8 +309,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // TOGGLE
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -382,11 +322,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () {
                         setState(() {
                           _isSignUp = !_isSignUp;
-                          _emailController.clear();
-                          _passwordController.clear();
-                          _nameController.clear();
-                          _phoneController.clear();
-                          _addressController.clear();
+                          if (!_isSignUp) {
+                            _passwordController.clear();
+                            _nameController.clear();
+                            _phoneController.clear();
+                            _addressController.clear();
+                          } else {
+                            _emailController.clear();
+                            _passwordController.clear();
+                            _nameController.clear();
+                            _phoneController.clear();
+                            _addressController.clear();
+                          }
                         });
                       },
                       child: Text(
