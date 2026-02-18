@@ -62,7 +62,7 @@ class FirestoreService {
     });
   }
 
-  // ADMIN - SİPARİŞ DURUMUNU GÜNCELLE
+  // SİPARİŞ DURUMUNU GÜNCELLE (Admin ve Kullanıcı İptali İçin)
   Future<void> updateOrderStatus(String orderId, String newStatus) async {
     try {
       await _firestore.collection('orders').doc(orderId).update({
@@ -72,6 +72,16 @@ class FirestoreService {
     } catch (e) {
       throw Exception('Sipariş durumu güncelleme hatası: $e');
     }
+  }
+
+  // SİPARİŞ İPTAL ET (Kullanıcı)
+  Future<void> cancelOrder(String orderId) async {
+    await updateOrderStatus(orderId, 'İptal Edildi');
+  }
+
+  // SİPARİŞ İADE TALEBİ (Kullanıcı)
+  Future<void> requestReturn(String orderId) async {
+    await updateOrderStatus(orderId, 'İade Talebi');
   }
 
   // ADMIN - KARGO NUMARASI EKLE
@@ -84,40 +94,6 @@ class FirestoreService {
     } catch (e) {
       throw Exception('Kargo numarası güncelleme hatası: $e');
     }
-  }
-
-  // REVIEWS
-  Future<void> addReview(
-    String productId,
-    String userId,
-    String userName,
-    int rating,
-    String comment,
-  ) async {
-    try {
-      await _firestore
-          .collection('products')
-          .doc(productId)
-          .collection('reviews')
-          .add({
-        'userId': userId,
-        'userName': userName,
-        'rating': rating,
-        'comment': comment,
-        'date': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      throw Exception('Yorum ekleme hatası: $e');
-    }
-  }
-
-  Stream<QuerySnapshot> getProductReviews(String productId) {
-    return _firestore
-        .collection('products')
-        .doc(productId)
-        .collection('reviews')
-        .orderBy('date', descending: true)
-        .snapshots();
   }
 
   // FAVORITES
@@ -165,31 +141,9 @@ class FirestoreService {
         .snapshots();
   }
 
-  // PROMO CODES
-  Future<Map<String, dynamic>?> validatePromoCode(String code) async {
-    try {
-      final doc = await _firestore
-          .collection('promos')
-          .where('code', isEqualTo: code.toUpperCase())
-          .where('active', isEqualTo: true)
-          .limit(1)
-          .get();
-
-      if (doc.docs.isEmpty) return null;
-
-      return doc.docs.first.data();
-    } catch (e) {
-      throw Exception('Promosyon kodu kontrol hatası: $e');
-    }
-  }
-
-  // USER PROFILE
+  // DİĞER METODLAR (Profil, Promo vb. aynen kalabilir)
   Future<void> updateUserProfile(
-    String userId,
-    String name,
-    String phone,
-    String address,
-  ) async {
+      String userId, String name, String phone, String address) async {
     try {
       await _firestore.collection('users').doc(userId).set(
         {
@@ -214,6 +168,23 @@ class FirestoreService {
       return null;
     } catch (e) {
       throw Exception('Profil yükleme hatası: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> validatePromoCode(String code) async {
+    try {
+      final doc = await _firestore
+          .collection('promos')
+          .where('code', isEqualTo: code.toUpperCase())
+          .where('active', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (doc.docs.isEmpty) return null;
+
+      return doc.docs.first.data();
+    } catch (e) {
+      throw Exception('Promosyon kodu kontrol hatası: $e');
     }
   }
 }

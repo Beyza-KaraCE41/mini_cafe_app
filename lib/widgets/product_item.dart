@@ -9,6 +9,7 @@ class ProductItem extends StatefulWidget {
   final VoidCallback onRemove;
   final VoidCallback? onAddToCart;
   final FirestoreService? firestoreService;
+  final bool isInitialFavorite; // YENİ PARAMETRE
 
   const ProductItem({
     super.key,
@@ -17,6 +18,7 @@ class ProductItem extends StatefulWidget {
     required this.onRemove,
     this.onAddToCart,
     this.firestoreService,
+    this.isInitialFavorite = false, // Varsayılan false
   });
 
   @override
@@ -25,7 +27,23 @@ class ProductItem extends StatefulWidget {
 
 class _ProductItemState extends State<ProductItem> {
   bool _isHovered = false;
-  bool _isFavorite = false;
+  late bool _isFavorite; // late olarak tanımladık
+
+  @override
+  void initState() {
+    super.initState();
+    // Başlangıç değerini home_screen'den gelen bilgiye göre ayarla
+    _isFavorite = widget.isInitialFavorite;
+  }
+
+  // Parent rebuild olduğunda favori durumunu güncelle
+  @override
+  void didUpdateWidget(covariant ProductItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isInitialFavorite != oldWidget.isInitialFavorite) {
+      _isFavorite = widget.isInitialFavorite;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +87,7 @@ class _ProductItemState extends State<ProductItem> {
                   child: Stack(
                     children: [
                       Container(
-                        height: 120,
+                        height: 110,
                         width: double.infinity,
                         color: Colors.grey.shade200,
                         child: Image.asset(
@@ -78,27 +96,12 @@ class _ProductItemState extends State<ProductItem> {
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               color: Colors.amber.shade300,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.coffee,
-                                    size: 40,
-                                    color: Colors.white.withOpacity(0.7),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    widget.product.name,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                              child: Center(
+                                child: Icon(
+                                  Icons.coffee,
+                                  size: 40,
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
                               ),
                             );
                           },
@@ -112,9 +115,23 @@ class _ProductItemState extends State<ProductItem> {
                         child: GestureDetector(
                           onTap: () async {
                             final user = FirebaseAuth.instance.currentUser;
-                            if (user != null &&
-                                widget.firestoreService != null) {
-                              if (_isFavorite) {
+
+                            if (user == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Giriş yapmanız gerekiyor'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            // Optimistik UI Update (Hemen tepki ver)
+                            setState(() => _isFavorite = !_isFavorite);
+
+                            try {
+                              if (!_isFavorite) {
+                                // Ters mantık çünkü yukarıda değiştirdik
                                 await widget.firestoreService!.removeFavorite(
                                     user.uid, widget.product.id);
                               } else {
@@ -124,19 +141,11 @@ class _ProductItemState extends State<ProductItem> {
                                   widget.product,
                                 );
                               }
+                            } catch (e) {
+                              // Hata olursa geri al
                               setState(() => _isFavorite = !_isFavorite);
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(_isFavorite
-                                      ? '${widget.product.name} favorilere eklendi ❤️'
-                                      : '${widget.product.name} favorilerden kaldırıldı'),
-                                  backgroundColor: _isFavorite
-                                      ? Colors.red.shade400
-                                      : Colors.grey,
-                                  behavior: SnackBarBehavior.floating,
-                                  margin: const EdgeInsets.all(8),
-                                  duration: const Duration(seconds: 2),
-                                ),
+                                SnackBar(content: Text('Hata: $e')),
                               );
                             }
                           },
@@ -194,31 +203,30 @@ class _ProductItemState extends State<ProductItem> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         Flexible(
                           child: Text(
                             widget.product.name,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: Colors.brown,
-                              height: 1.2,
+                              height: 1.1,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Spacer(),
                         Text(
                           '${widget.product.price.toStringAsFixed(0)} TL',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
                             color: Colors.amber.shade700,
                           ),
@@ -230,9 +238,9 @@ class _ProductItemState extends State<ProductItem> {
 
                 // ACTION BUTTON
                 Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   child: SizedBox(
-                    height: 36,
+                    height: 34,
                     child: widget.product.quantity == 0
                         ? SizedBox(
                             width: double.infinity,
@@ -244,9 +252,9 @@ class _ProductItemState extends State<ProductItem> {
                                     }
                                   : null,
                               icon:
-                                  const Icon(Icons.add_shopping_cart, size: 14),
+                                  const Icon(Icons.add_shopping_cart, size: 12),
                               label: const Text('Ekle',
-                                  style: TextStyle(fontSize: 11)),
+                                  style: TextStyle(fontSize: 10)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.amber.shade700,
                                 foregroundColor: Colors.white,
@@ -256,7 +264,7 @@ class _ProductItemState extends State<ProductItem> {
                                 ),
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                    horizontal: 6, vertical: 2),
                               ),
                             ),
                           )
@@ -277,21 +285,21 @@ class _ProductItemState extends State<ProductItem> {
                                   child: Icon(
                                     Icons.remove_circle_outline,
                                     color: Colors.brown.shade700,
-                                    size: 18,
+                                    size: 16,
                                   ),
                                 ),
                                 Container(
-                                  width: 28,
-                                  height: 28,
+                                  width: 24,
+                                  height: 24,
                                   decoration: BoxDecoration(
                                     color: Colors.amber.shade700,
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(3),
                                   ),
                                   child: Center(
                                     child: Text(
                                       '${widget.product.quantity}',
                                       style: const TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
                                       ),
@@ -312,7 +320,7 @@ class _ProductItemState extends State<ProductItem> {
                                             widget.product.stock
                                         ? Colors.amber.shade700
                                         : Colors.grey,
-                                    size: 18,
+                                    size: 16,
                                   ),
                                 ),
                               ],

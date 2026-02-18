@@ -25,17 +25,45 @@ class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final List<String> categories = ['Tümü', 'Kahve', 'Çay', 'Tatlı'];
 
+  List<String> _favoriteProductIds = [];
+  int _favoriteCount = 0;
+  bool _hasViewedFavorites = false; // YENİ: Rozeti kontrol etmek için
+
   @override
   void initState() {
     super.initState();
-    _selectedNavIndex = widget.initialIndex;
+    _selectedNavIndex = (widget.initialIndex >= 0 && widget.initialIndex <= 3)
+        ? widget.initialIndex
+        : 0;
+    _listenToFavorites();
+  }
+
+  void _listenToFavorites() {
+    final user = _authService.currentUser;
+    if (user != null) {
+      try {
+        _firestoreService.getUserFavorites(user.uid).listen((snapshot) {
+          if (mounted) {
+            setState(() {
+              _favoriteCount = snapshot.docs.length;
+              _favoriteProductIds = snapshot.docs.map((doc) => doc.id).toList();
+
+              // Eğer yeni favori eklendiyse ve şu an favoriler ekranında değilsek, rozeti tekrar yak
+              if (_selectedNavIndex != 1) {
+                _hasViewedFavorites = false;
+              }
+            });
+          }
+        });
+      } catch (e) {
+        print('Favori sayısı yükleme hatası: $e');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
-
-    // Sepetteki ürünleri hesapla (global products listesinden)
     final cartCount = products.fold<int>(0, (sum, p) => sum + p.quantity);
 
     return Scaffold(
@@ -46,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         elevation: 2,
         actions: [
-          // Sepet butonu
           Stack(
             children: [
               IconButton(
@@ -90,7 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
             ],
           ),
-          // Çıkış butonu
           IconButton(
             icon: const Icon(Icons.logout, size: 20),
             onPressed: _logout,
@@ -117,7 +143,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedNavIndex,
-        onTap: (index) => setState(() => _selectedNavIndex = index),
+        onTap: (index) {
+          setState(() {
+            _selectedNavIndex = index;
+            // Favoriler sekmesine (index 1) tıklandıysa, görüldü yap
+            if (index == 1) {
+              _hasViewedFavorites = true;
+            }
+          });
+        },
         type: BottomNavigationBarType.fixed,
         items: [
           const BottomNavigationBarItem(
@@ -125,7 +159,37 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Anasayfa',
           ),
           BottomNavigationBarItem(
-            icon: _buildFavoriteBadge(),
+            icon: Stack(
+              children: [
+                const Icon(Icons.favorite),
+                // Rozet mantığı: Sayı > 0 VE Henüz bakılmadıysa göster
+                if (_favoriteCount > 0 &&
+                    !_hasViewedFavorites &&
+                    _selectedNavIndex != 1)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      constraints:
+                          const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        '$_favoriteCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             label: 'Favoriler',
           ),
           const BottomNavigationBarItem(
@@ -141,36 +205,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFavoriteBadge() {
-    return Stack(
-      children: [
-        const Icon(Icons.favorite),
-        Positioned(
-          right: -8,
-          top: -8,
-          child: Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: Colors.red,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-            child: const Center(
-              child: Text(
-                '!',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildProductsScreen(bool isMobile) {
     List<Product> filteredProducts = _selectedCategoryIndex == 0
         ? products
@@ -180,7 +214,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: [
-        // Kategori Filtreleri
         SizedBox(
           height: 60,
           child: ListView.builder(
@@ -220,8 +253,6 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-
-        // Ürünler Listesi
         Expanded(
           child: filteredProducts.isEmpty
               ? Center(
@@ -256,8 +287,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: filteredProducts.length,
                   itemBuilder: (context, index) {
                     final product = filteredProducts[index];
+                    final isFavorite = _favoriteProductIds.contains(product.id);
+
                     return ProductItem(
                       product: product,
+                      isInitialFavorite: isFavorite,
                       firestoreService: _firestoreService,
                       onAdd: () {
                         setState(() {
@@ -299,7 +333,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _logout() async {
     try {
-      // Sepeti temizle çıkış yapırken
       for (var product in products) {
         product.quantity = 0;
       }

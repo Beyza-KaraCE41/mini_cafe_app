@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/order.dart' as order_model;
-import '../models/product.dart';
+import '../models/product.dart'; // Global products listesi
 import '../services/firestore_service.dart';
 
 class OrdersScreenUser extends StatefulWidget {
@@ -73,9 +73,11 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
       try {
         await _firestoreService.requestReturn(orderId);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(
-                  'İade talebi oluşturuldu. İade Kodu: TR-IADE-${orderId.substring(0, 4)}')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'İade talebi alındı. Kod: TR-IADE-${orderId.substring(0, 4)}')),
+          );
         }
       } catch (e) {
         if (mounted) {
@@ -91,19 +93,7 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock_outline,
-                  size: 80, color: Colors.brown.withOpacity(0.2)),
-              const SizedBox(height: 16),
-              const Text('Giriş yapmanız gerekiyor'),
-            ],
-          ),
-        ),
-      );
+      return const Center(child: Text('Giriş yapmanız gerekiyor'));
     }
 
     return Container(
@@ -120,37 +110,24 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (snapshot.hasError) {
             return const Center(child: Text('Bir hata oluştu'));
           }
-
           final orders = snapshot.data ?? [];
-
           if (orders.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.inbox_outlined,
-                      size: 100, color: Colors.brown.withOpacity(0.15)),
-                  const SizedBox(height: 24),
-                  const Text('Henüz Sipariş Yok',
-                      style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.brown)),
-                ],
-              ),
-            );
+            return const Center(
+                child: Text('Henüz sipariş yok',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.brown)));
           }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: orders.length,
             itemBuilder: (context, index) {
-              final order = orders[index];
-              return _buildOrderCard(order);
+              return _buildOrderCard(orders[index]);
             },
           );
         },
@@ -161,61 +138,46 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
   Widget _buildOrderCard(order_model.Order order) {
     Color statusColor = _getStatusColor(order.status);
     IconData statusIcon = _getStatusIcon(order.status);
-
-    String orderId = order.id.length > 8
-        ? order.id.substring(0, 8).toUpperCase()
-        : order.id.toUpperCase();
+    String orderIdShort =
+        order.id.length > 8 ? order.id.substring(0, 8).toUpperCase() : order.id;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Card(
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: statusColor.withOpacity(0.3), width: 1.5),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: ExpansionTile(
           leading: Container(
-            width: 50,
-            height: 50,
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(statusIcon, color: statusColor, size: 24),
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10)),
+            child: Icon(statusIcon, color: statusColor),
           ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Sipariş #$orderId',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.brown)),
-              Text(_formatDate(order.orderDate),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-            ],
-          ),
+          title: Text('Sipariş #$orderIdShort',
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.brown)),
+          subtitle: Text(_formatDate(order.orderDate),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-            ),
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12)),
             child: Text(order.status,
                 style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: statusColor)),
           ),
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  const Divider(),
-                  // 🛒 ÜRÜN LİSTESİ
                   ...order.items.map((item) {
+                    // GÖRSEL EŞLEŞTİRME MANTIĞI
+                    // 1. Önce ID'ye göre bulmaya çalış, 2. Bulamazsan isme göre bul, 3. Hiçbiri yoksa null
                     Product? matchedProduct;
                     try {
                       matchedProduct =
@@ -225,20 +187,19 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                     }
 
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 8, top: 8),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              color: Colors.grey.shade200,
+                            child: SizedBox(
+                              width: 50,
+                              height: 50,
                               child: matchedProduct != null
                                   ? Image.asset(matchedProduct.imagePath,
                                       fit: BoxFit.cover)
-                                  : const Icon(Icons.coffee,
-                                      size: 20, color: Colors.grey),
+                                  : const Icon(Icons.fastfood,
+                                      color: Colors.grey),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -248,41 +209,45 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                               children: [
                                 Text(item.name,
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14)),
-                                Text('${item.quantity} adet x ${item.price} TL',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600)),
+                                        fontWeight: FontWeight.bold)),
+                                Text(
+                                    '${item.quantity} adet x ${item.price} TL'),
                               ],
                             ),
                           ),
                           Text(
-                              '${(item.price * item.quantity).toStringAsFixed(0)} TL',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.brown)),
+                              '${(item.quantity * item.price).toStringAsFixed(0)} TL',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     );
                   }).toList(),
-
                   const Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Toplam Tutar',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('${order.total.toStringAsFixed(2)} TL',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.green)),
-                    ],
-                  ),
 
-                  // 🛑 İŞLEM BUTONLARI (İPTAL / İADE)
-                  const SizedBox(height: 16),
+                  // KARGO BİLGİSİ (Varsa Göster)
+                  if (order.cargoNumber != null &&
+                      order.cargoNumber!.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.local_shipping, color: Colors.blue),
+                          const SizedBox(width: 10),
+                          Expanded(
+                              child: Text('Kargo No: ${order.cargoNumber}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue))),
+                        ],
+                      ),
+                    ),
+
+                  // AKSİYON BUTONLARI (Duruma göre çıkar)
                   if (order.status == 'Beklemede')
                     SizedBox(
                       width: double.infinity,
@@ -291,9 +256,8 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                         icon: const Icon(Icons.cancel, size: 18),
                         label: const Text('Siparişi İptal Et'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                        ),
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red)),
                       ),
                     ),
 
@@ -305,9 +269,8 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
                         icon: const Icon(Icons.assignment_return, size: 18),
                         label: const Text('İade Talebi Oluştur'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.blueGrey,
-                          side: const BorderSide(color: Colors.blueGrey),
-                        ),
+                            foregroundColor: Colors.orange,
+                            side: const BorderSide(color: Colors.orange)),
                       ),
                     ),
                 ],
@@ -319,45 +282,23 @@ class _OrdersScreenUserState extends State<OrdersScreenUser> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
+  String _formatDate(DateTime date) => '${date.day}.${date.month}.${date.year}';
 
   Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Beklemede':
-        return Colors.orange;
-      case 'Hazırlanıyor':
-        return Colors.blue;
-      case 'Hazır':
-        return Colors.purple;
-      case 'Teslim Edildi':
-        return Colors.green;
-      case 'İptal Edildi':
-        return Colors.red;
-      case 'İade Talebi':
-        return Colors.blueGrey;
-      default:
-        return Colors.grey;
-    }
+    if (status == 'Beklemede') return Colors.orange;
+    if (status == 'Hazırlanıyor') return Colors.blue;
+    if (status == 'Hazır') return Colors.purple;
+    if (status == 'Teslim Edildi') return Colors.green;
+    if (status == 'İptal Edildi') return Colors.red;
+    return Colors.grey;
   }
 
   IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'Beklemede':
-        return Icons.schedule;
-      case 'Hazırlanıyor':
-        return Icons.local_cafe;
-      case 'Hazır':
-        return Icons.done;
-      case 'Teslim Edildi':
-        return Icons.check_circle;
-      case 'İptal Edildi':
-        return Icons.cancel;
-      case 'İade Talebi':
-        return Icons.assignment_return;
-      default:
-        return Icons.info;
-    }
+    if (status == 'Beklemede') return Icons.access_time;
+    if (status == 'Hazırlanıyor') return Icons.microwave;
+    if (status == 'Hazır') return Icons.check;
+    if (status == 'Teslim Edildi') return Icons.home;
+    if (status == 'İptal Edildi') return Icons.cancel;
+    return Icons.info;
   }
 }

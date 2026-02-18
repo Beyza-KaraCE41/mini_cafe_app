@@ -16,6 +16,16 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   final FirestoreService _firestoreService = FirestoreService();
+  final TextEditingController _promoController = TextEditingController();
+
+  String? appliedPromoCode;
+  int discountPercent = 0;
+
+  @override
+  void dispose() {
+    _promoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,8 +33,11 @@ class _CartScreenState extends State<CartScreen> {
         widget.cartItems.where((p) => p.quantity > 0).toList();
     double subtotal = widget.cartItems
         .fold(0, (sum, item) => sum + (item.price * item.quantity));
+
+    // İNDİRİM HESAPLA
+    double discountAmount = (subtotal * discountPercent) / 100;
     double delivery = 0;
-    double total = subtotal + delivery;
+    double total = subtotal - discountAmount + delivery;
 
     if (filteredItems.isEmpty) {
       return Scaffold(
@@ -282,130 +295,277 @@ class _CartScreenState extends State<CartScreen> {
                 ],
               ),
               padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Ara Toplam',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.brown.shade600,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // 🎟️ KUPON KODU
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _promoController,
+                            decoration: InputDecoration(
+                              hintText: 'Kupon kodu (örn: KUPA10)',
+                              filled: true,
+                              fillColor: Colors.grey.shade100,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                              prefixIcon: const Icon(Icons.local_offer),
+                            ),
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${subtotal.toStringAsFixed(2)} TL',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.brown.shade800,
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _applyPromo,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber.shade700,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('Uygula'),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Divider(
-                    color: Colors.grey.shade300,
-                    height: 20,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Teslimat',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.brown.shade600,
-                        ),
-                      ),
-                      Text(
-                        'Ücretsiz',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.green.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Divider(
-                    color: Colors.grey.shade300,
-                    height: 20,
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Toplam Tutar',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.brown,
-                        ),
-                      ),
-                      Text(
-                        '${total.toStringAsFixed(2)} TL',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _goToPayment(total),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber.shade700,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(Icons.payment, size: 22),
-                      label: Text(
-                        'Ödeme Yap ☕',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Text('Alışverişe Devam Et'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.brown.shade700,
-                        side: BorderSide(
-                          color: Colors.brown.shade700,
-                          width: 1.5,
-                        ),
-                        shape: RoundedRectangleBorder(
+
+                    // Kupon uygulandı
+                    if (appliedPromoCode != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          border: Border.all(
+                            color: Colors.green.shade300,
+                            width: 1.5,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                         ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle,
+                                color: Colors.green.shade600),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '✅ $appliedPromoCode kupon uygulandı! -%$discountPercent indirim',
+                                style: TextStyle(
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.close,
+                                  color: Colors.green.shade600, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  appliedPromoCode = null;
+                                  discountPercent = 0;
+                                  _promoController.clear();
+                                });
+                              },
+                              constraints: const BoxConstraints(minWidth: 32),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 16),
+
+                    // FIYAT HESAPLAMASI
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Ara Toplam',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.brown.shade600,
+                          ),
+                        ),
+                        Text(
+                          '${subtotal.toStringAsFixed(2)} TL',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.brown.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // İNDİRİM
+                    if (discountPercent > 0)
+                      Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'İndirim (-%$discountPercent)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.red.shade600,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '-${discountAmount.toStringAsFixed(2)} TL',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.red.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+
+                    Divider(
+                      color: Colors.grey.shade300,
+                      height: 20,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Teslimat',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.brown.shade600,
+                          ),
+                        ),
+                        Text(
+                          'Ücretsiz',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(
+                      color: Colors.grey.shade300,
+                      height: 20,
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Toplam Tutar',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.brown,
+                          ),
+                        ),
+                        Text(
+                          '${total.toStringAsFixed(2)} TL',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _goToPayment(total),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber.shade700,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.payment, size: 22),
+                        label: Text(
+                          'Ödeme Yap ☕',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text('Alışverişe Devam Et'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.brown.shade700,
+                          side: BorderSide(
+                            color: Colors.brown.shade700,
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // KUPON KODU KONTROL
+  Future<void> _applyPromo() async {
+    final code = _promoController.text.trim();
+
+    if (code.isEmpty) {
+      _showSnackBar('Kupon kodu girin', isError: true);
+      return;
+    }
+
+    try {
+      final promo = await _firestoreService.validatePromoCode(code);
+
+      if (promo != null) {
+        setState(() {
+          appliedPromoCode = code.toUpperCase();
+          discountPercent = promo['discount'] ?? 0;
+        });
+
+        _showSnackBar(
+          '✅ Kupon uygulandı! -%$discountPercent indirim kazandınız',
+          isError: false,
+        );
+      } else {
+        _showSnackBar('❌ Geçersiz kupon kodu', isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('❌ Hata: ${e.toString()}', isError: true);
+    }
   }
 
   Future<void> _goToPayment(double total) async {

@@ -17,6 +17,9 @@ class Product {
     this.quantity = 0,
   });
 
+  // Stok kontrolü
+  bool get isOutOfStock => stock <= 0;
+
   factory Product.fromFirestore(Map<String, dynamic> json, String docId) {
     return Product(
       id: docId,
